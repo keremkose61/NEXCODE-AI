@@ -2,9 +2,48 @@
 
 > **Code Smarter. Build Beyond.**
 
-NEXCODE AI is a next-generation professional desktop IDE engineered for Windows 10/11 64-bit, built with an uncompromising focus on developer velocity, privacy, and full local AI integration.
+NEXCODE AI is a next-generation professional desktop IDE engineered for Windows 10/11 64-bit, built with an uncompromising focus on developer velocity, privacy, and 100% local AI intelligence.
 
-Unlike traditional cloud-dependent AI editors, NEXCODE AI runs its artificial intelligence infrastructure 100% locally on your machine via Ollama and open-weight models, ensuring zero data leakage, complete offline capability, and enterprise-grade code privacy.
+Unlike traditional cloud-dependent AI editors, NEXCODE AI runs its artificial intelligence infrastructure strictly locally on your machine via Ollama and open-weight LLMs, ensuring zero cloud telemetry, complete offline capability, and enterprise-grade code privacy.
+
+---
+
+## Key Features
+
+- **100% Local AI Pipeline**: Communicate directly with local Ollama (`localhost:11434`) and Python FastAPI engine (`127.0.0.1:8765`). Zero external API keys needed.
+- **12 AI Assistant Modes**:
+  - `Chat`: General architecture and coding assistant.
+  - `Explain`: Step-by-step logic breakdown with Big-O complexity analysis.
+  - `Generate`: Production-ready code generation with TypeScript types and tests.
+  - `Fix Bugs`: Logic flaw detection and corrected code.
+  - `Optimize`: Algorithmic efficiency and memory allocations.
+  - `Convert`: Idiomatic language-to-language translation.
+  - `Error Analysis`: Runtime stack trace and error diagnostics.
+  - `Documentation`: JSDoc, docstrings, and Rustdoc generation.
+  - `Unit Tests`: High-coverage unit test suites.
+  - `Analyze File`: SOLID principles and maintainability assessment.
+  - `Analyze Selection`: Focused inspection of highlighted code.
+  - `Project Context`: Multi-file codebase synthesis.
+- **Inline AI (`Ctrl+K`)**: Floating bar above the Monaco Editor with real-time diff preview and *Accept & Replace / Discard* controls.
+- **Autonomous AI Agent**:
+  - Multi-stage goal planner.
+  - Strict human-in-the-loop approval gates.
+  - Visual unified diff preview before applying any file change.
+  - One-click rollback (*Undo*) for every approved modification.
+- **Monaco Code Editor**:
+  - Custom dark themes: *NEXCODE Dark*, *NEXCODE Black (OLED)*, *NEXCODE Nord*.
+  - Gutter breakpoints with red glyph icons.
+  - Multi-tab management, breadcrumbs, code minimap, bracket pair colorization.
+- **Integrated Terminal**: Multi-tab live Windows PowerShell and Command Prompt (CMD) sessions.
+- **Interactive Debugger**: Breakpoint management, call stack inspector, variable scope inspector, and live REPL debug console.
+- **Git & GitHub Integration**:
+  - Repository status, staged/unstaged changes, and branch management.
+  - Monaco visual diff viewer comparing working copy to HEAD.
+  - Safety gate requiring explicit confirmation before pushing to remote repositories.
+- **Hardened Electron Security**:
+  - `contextIsolation: true`, `nodeIntegration: false`, `sandbox: true`.
+  - Content Security Policy (CSP).
+  - Directory traversal prevention and sensitive file filtering (`.env`, `.key`, `credentials.json`).
 
 ---
 
@@ -15,63 +54,56 @@ NEXCODE-AI/
 ├── apps/
 │   └── desktop/               # Electron desktop shell + React renderer
 │       └── src/
-│           ├── main/          # Secure Electron main process (IPC, FS, Process managers)
+│           ├── main/          # Process managers, FS guards, Terminal & Git services
 │           ├── preload/       # Sandboxed contextBridge API exposer
-│           └── renderer/      # Modern React + Vite + Monaco + Tailwind UI
+│           └── renderer/      # React 18 + Vite + Monaco + Zustand + Tailwind UI
 ├── packages/
-│   ├── editor/                # Monaco Editor integration, themes & syntax
-│   ├── terminal/              # Multi-session PowerShell & CMD terminal manager
-│   ├── file-explorer/         # High-performance virtualized file tree & operations
-│   ├── git-manager/           # Git status, branches, staging, diffing & commit engine
-│   ├── shared/                # Universal TypeScript types, contracts & IPC protocols
+│   ├── editor/                # Monaco themes, language snippets, extensions
+│   ├── terminal/              # Terminal tab factory & process communication
+│   ├── file-explorer/         # High-performance virtualized file tree
+│   ├── git-manager/           # Git status & branch models
+│   ├── shared/                # Universal TypeScript types, contracts & IPC channels
 │   └── ui/                    # Reusable dark-mode UI components & design system
-├── ai-engine/                 # Python FastAPI local intelligence engine
-│   ├── app/                   # Agents, Context analyzer, RAG & Ollama orchestrator
-│   └── tests/                 # Unit & security tests for local AI tools
-├── native/
-│   └── rust-core/             # High-speed native file indexing & AST processing
+├── ai-engine/                 # Python 3 FastAPI local intelligence engine
+│   ├── app/                   # Prompts, Task Planner, Context & Guardrails
+│   └── tests/                 # 17 Pytest security and endpoint tests
 ├── database/
-│   └── migrations/            # SQLite schemas for settings, chat history & project states
-├── resources/                 # Icons, branding assets, custom Monaco themes
-└── docs/                      # Architectural specifications & security guidelines
+│   ├── migrations/            # SQLite schemas for settings, sessions & audit logs
+│   └── migrate.ts             # Migration loader & schema validation
+└── tests/                     # 39 Vitest integration and unit tests
 ```
 
 ---
 
-## Key Pillars
-
-1. **Local-First AI Engine**: Powered by Ollama and optimized open-weight LLMs (DeepSeek-Coder, Qwen2.5-Coder, Llama 3) with dynamic CPU/GPU hardware detection.
-2. **True Electron Security**: Hardened architecture with `contextIsolation: true`, `nodeIntegration: false`, sandboxed execution, and explicit user-permission gated file/terminal actions.
-3. **Monaco Editor Powerhouse**: Multi-tab code editor with custom themes, minimap, IntelliSense, breadcrumb navigation, and advanced diff views.
-4. **Integrated Developer Suite**: Multi-tab PowerShell/CMD terminal, Git integration, SQLite-backed state persistence, and AI context indexer.
-
----
-
-## Getting Started
+## Development & Verification
 
 ### Prerequisites
-- Node.js >= 20.x
-- pnpm >= 9.x
-- Git >= 2.40
-- Python >= 3.10 (optional for local AI backend)
-- Ollama (for local LLM inference)
+- Node.js 18+ (tested with Node v26)
+- pnpm 9+
+- Python 3.10+ (tested with Python 3.15)
+- Ollama (optional, for local LLM inference)
 
-### Installation
+### Run Tests
 ```bash
-# Install all dependencies across workspace
-pnpm install
-
-# Start desktop development environment
-pnpm dev
-
-# Run test suite
+# Run Vitest test suite (TypeScript & React stores)
 pnpm test
 
-# Build production Windows binaries
-pnpm build
+# Run Pytest suite (Python AI Engine & Guardrails)
+cd ai-engine && pytest tests/
+```
+
+### Build Desktop Application
+```bash
+pnpm --filter @nexcode/desktop build
+```
+
+### Launch Desktop IDE
+```bash
+pnpm --filter @nexcode/desktop start
 ```
 
 ---
 
-## License
-Proprietary & Confidential - NEXCODE AI Team.
+## Keyboard Shortcuts
+
+See [KEYBOARD_SHORTCUTS.md](file:///docs/KEYBOARD_SHORTCUTS.md) for a comprehensive list of shortcuts.
