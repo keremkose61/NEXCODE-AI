@@ -9,6 +9,9 @@ export interface AIChatMessage {
   isStreaming?: boolean;
   contextFiles?: string[];
   tokens?: number;
+  promptTokens?: number;
+  completionTokens?: number;
+  latencyMs?: number;
 }
 
 export interface AIModel {

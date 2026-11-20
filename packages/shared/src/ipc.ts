@@ -34,6 +34,8 @@ export const IPC_CHANNELS = {
   AI_LIST_MODELS: 'ai:list-models',
   AI_SEND_CHAT: 'ai:send-chat',
   AI_STREAM_CHUNK: 'ai:stream-chunk',
+  AI_PULL_MODEL: 'ai:pull-model',
+  AI_PULL_PROGRESS: 'ai:pull-progress',
 
   // Database & State
   DB_GET_SETTINGS: 'db:get-settings',

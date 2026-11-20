@@ -7,6 +7,7 @@ import { IPC_CHANNELS, FileNode, IDESettings, DEFAULT_SETTINGS } from '@nexcode/
 import { dbManager } from './db';
 import { fileWatcher } from './watcher';
 import { aiServiceManager } from './ai-service';
+import { makeHttpRequest } from './ai-client';
 
 let mainWindow: BrowserWindow | null = null;
 let currentProjectPath: string | null = null;
@@ -227,61 +228,126 @@ ipcMain.handle(IPC_CHANNELS.FS_RENAME_ITEM, async (_, oldPath: string, newPath: 
   }
 });
 
-// Local AI & Ollama Probe
+// Local AI & Ollama Probe & Chat IPC
 ipcMain.handle(IPC_CHANNELS.AI_CHECK_STATUS, async () => {
-  return new Promise((resolve) => {
-    const req = http.get('http://127.0.0.1:11434/api/tags', { timeout: 1500 }, (res) => {
-      let data = '';
-      res.on('data', (chunk) => { data += chunk; });
-      res.on('end', () => {
-        try {
-          const parsed = JSON.parse(data);
-          const models = parsed.models || [];
-          resolve({
-            isInstalled: true,
-            isRunning: true,
-            endpoint: 'http://localhost:11434',
-            modelsCount: models.length,
-            models: models.map((m: any) => ({
-              name: m.name,
-              displayName: m.name,
-              size: m.size ? `${(m.size / (1024 * 1024 * 1024)).toFixed(1)} GB` : undefined,
-              isAvailableLocally: true
-            }))
-          });
-        } catch {
-          resolve({
-            isInstalled: true,
-            isRunning: false,
-            endpoint: 'http://localhost:11434',
-            modelsCount: 0,
-            models: []
-          });
-        }
-      });
-    });
-
-    req.on('error', () => {
-      resolve({
-        isInstalled: false,
-        isRunning: false,
-        endpoint: 'http://localhost:11434',
-        modelsCount: 0,
-        models: []
-      });
-    });
-
-    req.on('timeout', () => {
-      req.destroy();
-      resolve({
-        isInstalled: false,
-        isRunning: false,
-        endpoint: 'http://localhost:11434',
-        modelsCount: 0,
-        models: []
-      });
-    });
+  // 1. Try local FastAPI backend first (port 8765)
+  const engineHealth = await makeHttpRequest<any>({
+    hostname: '127.0.0.1',
+    port: 8765,
+    path: '/api/v1/health',
+    method: 'GET',
+    timeout: 1200
   });
+
+  if (engineHealth.success && engineHealth.data) {
+    const ollama = engineHealth.data.ollama || {};
+    return {
+      engineOnline: true,
+      isInstalled: true,
+      isRunning: Boolean(ollama.online),
+      endpoint: 'http://localhost:11434',
+      modelsCount: ollama.local_models_count || 0,
+      models: (ollama.models || []).map((m: string) => ({
+        name: m,
+        displayName: m,
+        isAvailableLocally: true
+      }))
+    };
+  }
+
+  // 2. Direct fallback probe to Ollama port 11434
+  const directOllama = await makeHttpRequest<any>({
+    hostname: '127.0.0.1',
+    port: 11434,
+    path: '/api/tags',
+    method: 'GET',
+    timeout: 1200
+  });
+
+  if (directOllama.success && directOllama.data?.models) {
+    return {
+      engineOnline: false,
+      isInstalled: true,
+      isRunning: true,
+      endpoint: 'http://localhost:11434',
+      modelsCount: directOllama.data.models.length,
+      models: directOllama.data.models.map((m: any) => ({
+        name: m.name,
+        displayName: m.name,
+        isAvailableLocally: true
+      }))
+    };
+  }
+
+  return {
+    engineOnline: false,
+    isInstalled: false,
+    isRunning: false,
+    endpoint: 'http://localhost:11434',
+    modelsCount: 0,
+    models: []
+  };
+});
+
+ipcMain.handle(IPC_CHANNELS.AI_LIST_MODELS, async () => {
+  const res = await makeHttpRequest<any>({
+    hostname: '127.0.0.1',
+    port: 8765,
+    path: '/api/v1/models',
+    method: 'GET',
+    timeout: 2000
+  });
+  if (res.success && Array.isArray(res.data)) {
+    return res.data;
+  }
+  return [];
+});
+
+ipcMain.handle(IPC_CHANNELS.AI_SEND_CHAT, async (_, payload: any) => {
+  const startTime = Date.now();
+  const res = await makeHttpRequest<any>(
+    {
+      hostname: '127.0.0.1',
+      port: 8765,
+      path: '/api/v1/chat/completions',
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      timeout: 60000
+    },
+    payload
+  );
+
+  const latencyMs = Date.now() - startTime;
+  if (res.success && res.data) {
+    return {
+      success: true,
+      latencyMs,
+      data: res.data
+    };
+  }
+
+  return {
+    success: false,
+    latencyMs,
+    error: res.error || 'Failed to contact local AI backend'
+  };
+});
+
+ipcMain.handle(IPC_CHANNELS.AI_PULL_MODEL, async (_, modelName: string) => {
+  const res = await makeHttpRequest<any>(
+    {
+      hostname: '127.0.0.1',
+      port: 8765,
+      path: '/api/v1/models/pull',
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      timeout: 5000
+    },
+    { name: modelName }
+  );
+  return res;
 });
 
 // Database & Persistent Storage IPC

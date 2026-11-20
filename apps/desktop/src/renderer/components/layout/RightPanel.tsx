@@ -12,11 +12,15 @@ import {
   Bot,
   Zap,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  Copy,
+  Check,
+  Download
 } from 'lucide-react';
 import { useUIStore, RightPanelTab } from '../../stores/useUIStore';
 import { useAIStore } from '../../stores/useAIStore';
 import { useEditorStore } from '../../stores/useEditorStore';
+import { useNotificationStore } from '../../stores/useNotificationStore';
 
 export const RightPanel: React.FC = () => {
   const { rightSidebarOpen, activeRightTab, setRightTab, toggleRightSidebar, rightPanelWidth } =
@@ -25,22 +29,28 @@ export const RightPanel: React.FC = () => {
     messages,
     sendMessage,
     isThinking,
+    isStreaming,
     selectedModel,
+    availableModels,
     isOllamaRunning,
     hardware,
     checkLocalAIStatus,
-    clearHistory
+    clearHistory,
+    pullModel
   } = useAIStore();
   const { openTabs, activeTabId } = useEditorStore();
+  const { addNotification } = useNotificationStore();
 
   const [input, setInput] = useState('');
+  const [copiedId, setCopiedId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const activeTab = openTabs.find((t) => t.id === activeTabId);
+  const activeModelMeta = availableModels.find((m) => m.name === selectedModel);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, isThinking]);
+  }, [messages, isThinking, isStreaming]);
 
   if (!rightSidebarOpen) return null;
 
@@ -48,6 +58,25 @@ export const RightPanel: React.FC = () => {
     if (!input.trim() || isThinking) return;
     sendMessage(input, activeTab?.content);
     setInput('');
+  };
+
+  const handleCopy = (id: string, text: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedId(id);
+    addNotification({ type: 'info', message: 'Copied message to clipboard.' });
+    setTimeout(() => setCopiedId(null), 2000);
+  };
+
+  const handlePullModel = async () => {
+    addNotification({
+      type: 'info',
+      title: 'Download Initiated',
+      message: `Requesting ${selectedModel} download via Ollama...`
+    });
+    const res = await pullModel(selectedModel);
+    if (res) {
+      addNotification({ type: 'success', message: `Pulling ${selectedModel} in background.` });
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -127,6 +156,16 @@ export const RightPanel: React.FC = () => {
             }`}
           />
           <span className="font-mono text-slate-300 font-medium truncate">{selectedModel}</span>
+          {activeModelMeta && !activeModelMeta.isAvailableLocally && (
+            <button
+              onClick={handlePullModel}
+              title="Download Model into Ollama"
+              className="flex items-center space-x-0.5 px-1.5 py-0.5 rounded bg-indigo-600/30 text-indigo-300 hover:bg-indigo-600 hover:text-white transition-colors"
+            >
+              <Download className="w-2.5 h-2.5" />
+              <span>Pull</span>
+            </button>
+          )}
         </div>
         <button
           onClick={checkLocalAIStatus}
@@ -150,19 +189,44 @@ export const RightPanel: React.FC = () => {
                   msg.role === 'user' ? 'items-end' : 'items-start'
                 }`}
               >
-                <div className="flex items-center space-x-1 text-[10px] text-slate-500 mb-1 px-1">
+                <div className="flex items-center space-x-1.5 text-[10px] text-slate-500 mb-1 px-1">
                   <span>{msg.role === 'user' ? 'You' : 'NEXCODE Local AI'}</span>
                   {msg.model && <span>• {msg.model}</span>}
+                  {msg.latencyMs !== undefined && (
+                    <span className="text-emerald-400 font-mono">⚡ {msg.latencyMs}ms</span>
+                  )}
+                  {msg.tokens !== undefined && (
+                    <span className="text-slate-400 font-mono">({msg.tokens} tokens)</span>
+                  )}
                 </div>
 
                 <div
-                  className={`p-3 rounded-xl max-w-[95%] leading-relaxed text-xs break-words shadow-sm ${
+                  className={`p-3 rounded-xl max-w-[95%] leading-relaxed text-xs break-words shadow-sm relative group ${
                     msg.role === 'user'
                       ? 'bg-indigo-600 text-white rounded-br-none'
                       : 'bg-nexcode-950 border border-nexcode-800 text-slate-200 rounded-bl-none'
                   }`}
                 >
-                  <div className="whitespace-pre-wrap">{msg.content}</div>
+                  <div className="whitespace-pre-wrap">
+                    {msg.content}
+                    {msg.isStreaming && (
+                      <span className="inline-block w-1.5 h-3.5 bg-indigo-400 ml-1 animate-pulse align-middle" />
+                    )}
+                  </div>
+
+                  {msg.role === 'assistant' && msg.content && !msg.isStreaming && (
+                    <button
+                      onClick={() => handleCopy(msg.id, msg.content)}
+                      className="absolute right-2 bottom-1.5 opacity-0 group-hover:opacity-100 p-1 rounded bg-nexcode-850 hover:bg-nexcode-750 text-slate-400 hover:text-white transition-all"
+                      title="Copy Message"
+                    >
+                      {copiedId === msg.id ? (
+                        <Check className="w-3 h-3 text-emerald-400" />
+                      ) : (
+                        <Copy className="w-3 h-3" />
+                      )}
+                    </button>
+                  )}
                 </div>
               </div>
             ))}

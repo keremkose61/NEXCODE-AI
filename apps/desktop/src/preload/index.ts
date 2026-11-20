@@ -36,7 +36,10 @@ const nexcodeAPI = {
     }
   },
   ai: {
-    checkStatus: () => ipcRenderer.invoke(IPC_CHANNELS.AI_CHECK_STATUS)
+    checkStatus: () => ipcRenderer.invoke(IPC_CHANNELS.AI_CHECK_STATUS),
+    listModels: () => ipcRenderer.invoke(IPC_CHANNELS.AI_LIST_MODELS),
+    sendChat: (payload: any) => ipcRenderer.invoke(IPC_CHANNELS.AI_SEND_CHAT, payload),
+    pullModel: (modelName: string) => ipcRenderer.invoke(IPC_CHANNELS.AI_PULL_MODEL, modelName)
   },
   db: {
     getRecentProjects: (): Promise<RecentProject[]> => ipcRenderer.invoke(IPC_CHANNELS.DB_GET_RECENT_PROJECTS),

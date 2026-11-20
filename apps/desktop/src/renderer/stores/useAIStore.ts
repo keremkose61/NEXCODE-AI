@@ -1,10 +1,11 @@
 import { create } from 'zustand';
 import { AIChatMessage, AIModel } from '@nexcode/shared';
+import { useEditorStore } from './useEditorStore';
 
 export const DEFAULT_MODELS: AIModel[] = [
   {
     name: 'qwen2.5-coder:7b',
-    displayName: 'Qwen 2.5 Coder 7B (Recommended)',
+    displayName: 'Qwen 2.5 Coder 7B (Default)',
     size: '4.7 GB',
     isAvailableLocally: false,
     description: 'High-precision coding, multi-language reasoning, low RAM footprint.',
@@ -33,6 +34,7 @@ interface AIState {
   availableModels: AIModel[];
   isOllamaRunning: boolean;
   isOllamaInstalled: boolean;
+  isFastApiRunning: boolean;
   hardware: {
     cpuModel: string;
     cpuCores: number;
@@ -43,10 +45,13 @@ interface AIState {
   };
   messages: AIChatMessage[];
   isThinking: boolean;
+  isStreaming: boolean;
+  streamingMessageId: string | null;
 
   setSelectedModel: (model: string) => void;
   checkLocalAIStatus: () => Promise<void>;
   sendMessage: (content: string, codeContext?: string) => Promise<void>;
+  pullModel: (modelName: string) => Promise<boolean>;
   clearHistory: () => void;
 }
 
@@ -55,6 +60,7 @@ export const useAIStore = create<AIState>((set, get) => ({
   availableModels: DEFAULT_MODELS,
   isOllamaRunning: false,
   isOllamaInstalled: false,
+  isFastApiRunning: false,
   hardware: {
     cpuModel: 'Detecting...',
     cpuCores: 8,
@@ -80,6 +86,8 @@ You can ask me to:
     }
   ],
   isThinking: false,
+  isStreaming: false,
+  streamingMessageId: null,
 
   setSelectedModel: (model) => set({ selectedModel: model }),
 
@@ -93,11 +101,24 @@ You can ask me to:
       if (aiStatus) {
         set({
           isOllamaInstalled: aiStatus.isInstalled,
-          isOllamaRunning: aiStatus.isRunning
+          isOllamaRunning: aiStatus.isRunning,
+          isFastApiRunning: Boolean(aiStatus.engineOnline)
         });
-        if (aiStatus.models && aiStatus.models.length > 0) {
-          set({ availableModels: aiStatus.models, selectedModel: aiStatus.models[0].name });
-        }
+      }
+
+      // Query full model catalog from local backend
+      const modelsList = await window.nexcode.ai.listModels();
+      if (Array.isArray(modelsList) && modelsList.length > 0) {
+        set({
+          availableModels: modelsList.map((m: any) => ({
+            name: m.name,
+            displayName: m.display_name || m.name,
+            size: m.size,
+            isAvailableLocally: Boolean(m.is_available_locally),
+            description: m.description,
+            recommendedHardware: m.recommended_hardware
+          }))
+        });
       }
     } catch (err) {
       console.warn('AI status probe error:', err);
@@ -114,19 +135,93 @@ You can ask me to:
       timestamp: Date.now()
     };
 
+    const assistantMsgId = `msg-${Date.now() + 1}`;
+    const initialAssistantMsg: AIChatMessage = {
+      id: assistantMsgId,
+      role: 'assistant',
+      content: '',
+      timestamp: Date.now(),
+      model: get().selectedModel,
+      isStreaming: true
+    };
+
     set((state) => ({
-      messages: [...state.messages, userMsg],
-      isThinking: true
+      messages: [...state.messages, userMsg, initialAssistantMsg],
+      isThinking: true,
+      isStreaming: true,
+      streamingMessageId: assistantMsgId
     }));
 
-    const { isOllamaRunning, selectedModel, hardware } = get();
+    const { selectedModel, isOllamaRunning, hardware } = get();
 
-    // Responsive processing with local Ollama or honest local-offline fallback
-    setTimeout(() => {
-      let replyContent = '';
+    // Prepare context files from open editor tabs
+    const openTabs = useEditorStore.getState().openTabs;
+    const contextFiles = openTabs.map((t) => ({
+      path: t.filePath,
+      content: t.content
+    }));
 
-      if (!isOllamaRunning) {
-        replyContent = `⚠️ **Local AI Engine Offline**
+    try {
+      if (window.nexcode) {
+        const response = await window.nexcode.ai.sendChat({
+          model: selectedModel,
+          messages: [
+            ...get().messages.filter((m) => m.id !== assistantMsgId).map((m) => ({
+              role: m.role,
+              content: m.content
+            }))
+          ],
+          context_files: contextFiles,
+          temperature: 0.2
+        });
+
+        if (response.success && response.data?.message) {
+          const content = response.data.message.content;
+          const usage = response.data.usage || {};
+
+          // Simulate fluid token streaming for developer feedback
+          let displayed = '';
+          const words = content.split(' ');
+          for (let i = 0; i < words.length; i++) {
+            displayed += (i === 0 ? '' : ' ') + words[i];
+            if (i % 3 === 0 || i === words.length - 1) {
+              set((state) => ({
+                messages: state.messages.map((m) =>
+                  m.id === assistantMsgId ? { ...m, content: displayed } : m
+                )
+              }));
+              await new Promise((r) => setTimeout(r, 15));
+            }
+          }
+
+          set((state) => ({
+            messages: state.messages.map((m) =>
+              m.id === assistantMsgId
+                ? {
+                    ...m,
+                    content,
+                    isStreaming: false,
+                    tokens: usage.total_tokens,
+                    promptTokens: usage.prompt_tokens,
+                    completionTokens: usage.completion_tokens,
+                    latencyMs: response.latencyMs
+                  }
+                : m
+            ),
+            isThinking: false,
+            isStreaming: false,
+            streamingMessageId: null
+          }));
+          return;
+        }
+      }
+    } catch (err) {
+      console.warn('Live chat query error, using offline guidance fallback:', err);
+    }
+
+    // Offline guidance fallback
+    const fallbackText = !isOllamaRunning
+      ? `⚠️ **Local AI Engine Offline**
 
 Ollama was not detected at \`http://localhost:11434\`.
 
@@ -141,27 +236,33 @@ Ollama was not detected at \`http://localhost:11434\`.
 *Current Hardware Profile:*
 - CPU: ${hardware.cpuModel} (${hardware.cpuCores} cores)
 - RAM: ${hardware.ramGb} GB
-- Accelerator: ${hardware.accelerationMode} (AMD/CPU Safe Mode)`;
-      } else {
-        replyContent = `I have received your request regarding:
-> *${userText.slice(0, 100)}...*
+- Accelerator: ${hardware.accelerationMode} (AMD/CPU Safe Mode)`
+      : `Model \`${selectedModel}\` is ready and listening in your local workspace.`;
 
-Model: \`${selectedModel}\` is processing your local query within the active workspace.`;
-      }
+    set((state) => ({
+      messages: state.messages.map((m) =>
+        m.id === assistantMsgId
+          ? {
+              ...m,
+              content: fallbackText,
+              isStreaming: false
+            }
+          : m
+      ),
+      isThinking: false,
+      isStreaming: false,
+      streamingMessageId: null
+    }));
+  },
 
-      const assistantMsg: AIChatMessage = {
-        id: `msg-${Date.now() + 1}`,
-        role: 'assistant',
-        content: replyContent,
-        timestamp: Date.now(),
-        model: selectedModel
-      };
-
-      set((state) => ({
-        messages: [...state.messages, assistantMsg],
-        isThinking: false
-      }));
-    }, 700);
+  pullModel: async (modelName: string) => {
+    if (!window.nexcode) return false;
+    try {
+      const res = await window.nexcode.ai.pullModel(modelName);
+      return res.success;
+    } catch {
+      return false;
+    }
   },
 
   clearHistory: () => {
