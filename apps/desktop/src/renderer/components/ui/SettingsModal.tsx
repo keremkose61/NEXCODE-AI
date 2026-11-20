@@ -29,8 +29,8 @@ export const SettingsModal: React.FC = () => {
         {/* Modal Header */}
         <div className="h-11 px-4 border-b border-nexcode-800 bg-nexcode-950 flex items-center justify-between">
           <div className="flex items-center space-x-2 font-bold text-slate-100 text-sm">
-            <Sliders className="w-4 h-4 text-indigo-400" />
-            <span>NEXCODE AI Settings</span>
+            <Sliders className="w-4 h-4 text-purple-400" />
+            <span>NOVA IDE Ayarları & Tercihler</span>
           </div>
           <button
             onClick={closeSettingsModal}
@@ -190,19 +190,21 @@ export const SettingsModal: React.FC = () => {
 
             {activeTab === 'theme' && (
               <div className="space-y-3">
-                <span className="text-slate-300 font-medium block">Color Theme</span>
+                <span className="text-slate-300 font-medium block">Görünüm ve Renk Teması</span>
                 <div className="grid grid-cols-2 gap-2.5">
                   {[
-                    { id: 'nexcode-dark', name: 'NEXCODE Dark (Default)', desc: 'Balanced deep slate with indigo accents' },
-                    { id: 'nexcode-black', name: 'NEXCODE OLED Black', desc: 'Maximum contrast absolute black' },
-                    { id: 'nexcode-nord', name: 'NEXCODE Nord Frost', desc: 'Cool arctic blue night aesthetic' }
+                    { id: 'nova-dark', name: 'NOVA Dark (Önerilen)', desc: 'Mor ve cyan neon vurgulu derin lacivert/siyah' },
+                    { id: 'nova-light', name: 'NOVA Light', desc: 'Açık platin/beyaz paneller, mor ve mavi vurgular' },
+                    { id: 'nexcode-dark', name: 'Classic Dark', desc: 'Dengeli arduvaz arka plan ve indigo vurgular' },
+                    { id: 'nexcode-black', name: 'OLED Black', desc: 'Maksimum kontrastlı mutlak siyah tema' },
+                    { id: 'nexcode-nord', name: 'Nord Frost', desc: 'Arktik soğuk mavi gece teması' }
                   ].map((t) => (
                     <button
                       key={t.id}
                       onClick={() => updateSettings({ theme: t.id as any })}
                       className={`p-3 rounded-lg border text-left flex flex-col space-y-1 transition-all ${
                         settings.theme === t.id
-                          ? 'border-indigo-500 bg-indigo-600/10 text-white shadow-md'
+                          ? 'border-purple-500 bg-purple-600/10 text-white shadow-[0_0_12px_rgba(168,85,247,0.2)]'
                           : 'border-nexcode-800 bg-nexcode-950 text-slate-400 hover:border-slate-700'
                       }`}
                     >

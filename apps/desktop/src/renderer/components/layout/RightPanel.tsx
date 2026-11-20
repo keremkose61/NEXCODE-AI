@@ -19,11 +19,14 @@ import {
   Mic,
   MicOff,
   Image as ImageIcon,
-  Database
+  Database,
+  Eye
 } from 'lucide-react';
 import { useUIStore } from '../../stores/useUIStore';
 import { useAIStore, ASSISTANT_MODES } from '../../stores/useAIStore';
 import { useEditorStore } from '../../stores/useEditorStore';
+import { useGitStore } from '../../stores/useGitStore';
+import { useSettingsStore } from '../../stores/useSettingsStore';
 import { useNotificationStore } from '../../stores/useNotificationStore';
 import { AgentPanel } from '../ai/AgentPanel';
 import { AIAssistantMode } from '@nexcode/shared';
@@ -51,7 +54,11 @@ export const RightPanel: React.FC = () => {
     deleteSession
   } = useAIStore();
   const { openTabs, activeTabId, applyCodeReplacement } = useEditorStore();
+  const { showCustomDiff } = useGitStore();
+  const { settings } = useSettingsStore();
   const { addNotification } = useNotificationStore();
+
+  const isLight = settings.theme === 'nova-light';
 
   const [input, setInput] = useState('');
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -189,12 +196,30 @@ export const RightPanel: React.FC = () => {
     setTimeout(() => setCopiedId(null), 2000);
   };
 
+  const handlePreviewDiff = (code: string) => {
+    const curContent = activeTab?.content || '';
+    const fname = activeTab?.fileName || 'untitled.ts';
+    showCustomDiff(fname, curContent, code, () => {
+      applyCodeReplacement(code);
+      addNotification({
+        type: 'success',
+        title: 'Kod Uygulandı',
+        message: `${fname} dosyası başarıyla güncellendi.`
+      });
+    });
+  };
+
   const handleInsertCode = (code: string) => {
+    const ok = window.confirm(
+      `Yapay zekâ tarafından üretilen kodu "${activeTab?.fileName || 'aktif dosya'}" üzerine uygulamak istediğinize emin misiniz?`
+    );
+    if (!ok) return;
+
     applyCodeReplacement(code);
     addNotification({
       type: 'success',
-      title: 'Inserted Code',
-      message: 'Code block inserted into active editor file.'
+      title: 'Kod Uygulandı',
+      message: `${activeTab?.fileName || 'Aktif dosya'} güncellendi.`
     });
   };
 
@@ -225,43 +250,51 @@ export const RightPanel: React.FC = () => {
   return (
     <aside
       style={{ width: `${rightPanelWidth}px` }}
-      className="bg-nexcode-900 border-l border-nexcode-800 flex flex-col select-none text-xs h-full overflow-hidden z-30 flex-shrink-0"
+      className={`border-l flex flex-col select-none text-xs h-full overflow-hidden z-30 flex-shrink-0 transition-colors ${
+        isLight
+          ? 'bg-white border-slate-200 text-slate-800'
+          : 'bg-[#0b0e17] border-[#1c2438] text-slate-200'
+      }`}
     >
-      {/* Top Header & Tabs */}
-      <div className="h-9 px-3 border-b border-nexcode-800 flex items-center justify-between bg-nexcode-950">
+      {/* Üst Başlık ve Sekmeler */}
+      <div
+        className={`h-9 px-3 border-b flex items-center justify-between ${
+          isLight ? 'bg-slate-50 border-slate-200' : 'bg-[#080a10] border-[#1c2438]'
+        }`}
+      >
         <div className="flex items-center space-x-1">
           <button
             onClick={() => setRightTab('chat')}
-            className={`px-2.5 py-1 rounded text-[11px] font-medium transition-colors flex items-center gap-1.5 ${
+            className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-colors flex items-center gap-1.5 ${
               activeRightTab === 'chat'
-                ? 'bg-indigo-600/20 text-indigo-300 font-semibold border border-indigo-500/30'
+                ? 'bg-purple-600/20 text-purple-300 font-semibold border border-purple-500/30'
                 : 'text-slate-400 hover:text-slate-200'
             }`}
           >
-            <Sparkles className="w-3.5 h-3.5" />
-            <span>AI Assistant</span>
+            <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
+            <span>AI Asistanı</span>
           </button>
           <button
             onClick={() => setRightTab('agent')}
-            className={`px-2.5 py-1 rounded text-[11px] font-medium transition-colors flex items-center gap-1.5 ${
+            className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-colors flex items-center gap-1.5 ${
               activeRightTab === 'agent'
-                ? 'bg-indigo-600/20 text-indigo-300 font-semibold border border-indigo-500/30'
+                ? 'bg-purple-600/20 text-purple-300 font-semibold border border-purple-500/30'
                 : 'text-slate-400 hover:text-slate-200'
             }`}
           >
-            <Bot className="w-3.5 h-3.5" />
-            <span>Agent Tasks</span>
+            <Bot className="w-3.5 h-3.5 text-purple-400" />
+            <span>Ajan Görevleri</span>
           </button>
           <button
             onClick={() => setRightTab('context')}
-            className={`px-2.5 py-1 rounded text-[11px] font-medium transition-colors flex items-center gap-1.5 ${
+            className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-colors flex items-center gap-1.5 ${
               activeRightTab === 'context'
-                ? 'bg-indigo-600/20 text-indigo-300 font-semibold border border-indigo-500/30'
+                ? 'bg-purple-600/20 text-purple-300 font-semibold border border-purple-500/30'
                 : 'text-slate-400 hover:text-slate-200'
             }`}
           >
-            <Layers className="w-3.5 h-3.5" />
-            <span>Context</span>
+            <Database className="w-3.5 h-3.5 text-emerald-400" />
+            <span>RAG Bellek</span>
           </button>
         </div>
 
@@ -431,42 +464,54 @@ export const RightPanel: React.FC = () => {
                   </div>
 
                   <div
-                    className={`p-3 rounded-xl max-w-[95%] leading-relaxed text-xs break-words shadow-sm relative group ${
+                    className={`p-3 rounded-2xl max-w-[95%] leading-relaxed text-xs break-words shadow-sm relative group ${
                       msg.role === 'user'
-                        ? 'bg-indigo-600 text-white rounded-br-none'
-                        : 'bg-nexcode-950 border border-nexcode-800 text-slate-200 rounded-bl-none'
+                        ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-br-none shadow-[0_0_12px_rgba(168,85,247,0.25)]'
+                        : isLight
+                        ? 'bg-slate-50 border border-slate-200 text-slate-800 rounded-bl-none shadow-xs'
+                        : 'bg-[#0e1322] border border-[#222c44] hover:border-cyan-500/40 text-slate-200 rounded-bl-none shadow-[0_0_15px_rgba(6,182,212,0.06)]'
                     }`}
                   >
                     <div className="whitespace-pre-wrap">
                       {msg.content}
                       {msg.isStreaming && (
-                        <span className="inline-block w-1.5 h-3.5 bg-indigo-400 ml-1 animate-pulse align-middle" />
+                        <span className="inline-block w-1.5 h-3.5 bg-cyan-400 ml-1 animate-pulse align-middle" />
                       )}
                     </div>
 
                     {msg.role === 'assistant' && msg.content && !msg.isStreaming && (
-                      <div className="flex items-center space-x-1 mt-2 pt-1 border-t border-nexcode-800/60 justify-end">
+                      <div className="flex items-center space-x-1.5 mt-2.5 pt-1.5 border-t border-slate-700/40 justify-end">
                         {codeBlock && (
-                          <button
-                            onClick={() => handleInsertCode(codeBlock)}
-                            className="flex items-center space-x-1 px-2 py-0.5 rounded bg-emerald-600/20 text-emerald-300 hover:bg-emerald-600 hover:text-white transition-colors text-[10px]"
-                            title="Insert into active file"
-                          >
-                            <ArrowDownToLine className="w-3 h-3" />
-                            <span>Insert</span>
-                          </button>
+                          <>
+                            <button
+                              onClick={() => handlePreviewDiff(codeBlock)}
+                              className="flex items-center space-x-1 px-2.5 py-1 rounded-md bg-purple-600/20 text-purple-300 hover:bg-purple-600/30 hover:text-white transition-colors text-[10px] font-semibold border border-purple-500/30 cursor-pointer"
+                              title="Değişiklikleri uygulamadan önce görsel diff önizlemesi"
+                            >
+                              <Eye className="w-3 h-3 text-cyan-400" />
+                              <span>Diff Önizlemesi</span>
+                            </button>
+                            <button
+                              onClick={() => handleInsertCode(codeBlock)}
+                              className="flex items-center space-x-1 px-2.5 py-1 rounded-md bg-emerald-600/20 text-emerald-300 hover:bg-emerald-600 hover:text-white transition-colors text-[10px] font-semibold border border-emerald-500/30 cursor-pointer"
+                              title="Editördeki aktif dosyaya onayla ve uygula"
+                            >
+                              <ArrowDownToLine className="w-3 h-3" />
+                              <span>Uygula</span>
+                            </button>
+                          </>
                         )}
                         <button
                           onClick={() => handleCopy(msg.id, msg.content)}
-                          className="flex items-center space-x-1 px-2 py-0.5 rounded bg-nexcode-850 hover:bg-nexcode-750 text-slate-400 hover:text-white transition-colors text-[10px]"
-                          title="Copy Message"
+                          className="flex items-center space-x-1 px-2 py-1 rounded-md bg-slate-800/60 hover:bg-slate-700 text-slate-400 hover:text-white transition-colors text-[10px] cursor-pointer"
+                          title="Mesajı Kopyala"
                         >
                           {copiedId === msg.id ? (
                             <Check className="w-3 h-3 text-emerald-400" />
                           ) : (
                             <Copy className="w-3 h-3" />
                           )}
-                          <span>Copy</span>
+                          <span>Kopyala</span>
                         </button>
                       </div>
                     )}

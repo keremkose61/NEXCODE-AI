@@ -43,6 +43,60 @@ export function detectLanguageFromPath(filePath: string): string {
   return 'plaintext';
 }
 
+export const NOVA_DARK_THEME = {
+  base: 'vs-dark' as const,
+  inherit: true,
+  rules: [
+    { token: '', foreground: 'e2e8f0', background: '0b0f19' },
+    { token: 'comment', foreground: '64748b', fontStyle: 'italic' },
+    { token: 'keyword', foreground: 'c084fc', fontStyle: 'bold' },
+    { token: 'string', foreground: '34d399' },
+    { token: 'number', foreground: 'fbbf24' },
+    { token: 'type', foreground: '22d3ee' },
+    { token: 'function', foreground: '60a5fa' },
+    { token: 'variable', foreground: 'f1f5f9' },
+    { token: 'operator', foreground: 'f472b6' }
+  ],
+  colors: {
+    'editor.background': '#0b0f19',
+    'editor.foreground': '#e2e8f0',
+    'editorLineNumber.foreground': '#334155',
+    'editorLineNumber.activeForeground': '#22d3ee',
+    'editor.lineHighlightBackground': '#131a2b',
+    'editor.selectionBackground': '#2a3552',
+    'editorCursor.foreground': '#a855f7',
+    'editorIndentGuide.background': '#1e293b',
+    'editorIndentGuide.activeBackground': '#38bdf8'
+  }
+};
+
+export const NOVA_LIGHT_THEME = {
+  base: 'vs' as const,
+  inherit: true,
+  rules: [
+    { token: '', foreground: '0f172a', background: 'f8fafc' },
+    { token: 'comment', foreground: '64748b', fontStyle: 'italic' },
+    { token: 'keyword', foreground: '7c3aed', fontStyle: 'bold' },
+    { token: 'string', foreground: '059669' },
+    { token: 'number', foreground: 'd97706' },
+    { token: 'type', foreground: '0891b2' },
+    { token: 'function', foreground: '2563eb' },
+    { token: 'variable', foreground: '1e293b' },
+    { token: 'operator', foreground: 'db2777' }
+  ],
+  colors: {
+    'editor.background': '#f8fafc',
+    'editor.foreground': '#0f172a',
+    'editorLineNumber.foreground': '#94a3b8',
+    'editorLineNumber.activeForeground': '#7c3aed',
+    'editor.lineHighlightBackground': '#f1f5f9',
+    'editor.selectionBackground': '#cbd5e1',
+    'editorCursor.foreground': '#7c3aed',
+    'editorIndentGuide.background': '#e2e8f0',
+    'editorIndentGuide.activeBackground': '#94a3b8'
+  }
+};
+
 export const NEXCODE_DARK_THEME = {
   base: 'vs-dark' as const,
   inherit: true,

@@ -46,10 +46,11 @@ export const App: React.FC = () => {
   } = useUIStore();
   const { saveCurrentFile } = useEditorStore();
   const { initFileWatcher, loadRecentProjects } = useProjectStore();
-  const { openSettingsModal } = useSettingsStore();
+  const { settings, openSettingsModal } = useSettingsStore();
   const { addNotification } = useNotificationStore();
 
   const [isRecentModalOpen, setIsRecentModalOpen] = useState(false);
+  const isLight = settings.theme === 'nova-light';
 
   useEffect(() => {
     // Initial hardware & local AI engine status check
@@ -147,7 +148,13 @@ export const App: React.FC = () => {
   ]);
 
   return (
-    <div className="h-screen w-screen flex flex-col overflow-hidden bg-nexcode-950 text-slate-200">
+    <div
+      className={`h-screen w-screen flex flex-col overflow-hidden font-sans ${
+        isLight
+          ? 'theme-nova-light bg-[#f8fafc] text-slate-800'
+          : 'bg-[#080a10] text-slate-200'
+      }`}
+    >
       {/* Top Application Bar */}
       <TopBar />
 

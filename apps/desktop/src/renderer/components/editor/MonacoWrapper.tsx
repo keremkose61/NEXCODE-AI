@@ -7,6 +7,8 @@ import { useUIStore } from '../../stores/useUIStore';
 import { useAIStore } from '../../stores/useAIStore';
 import { useDebuggerStore } from '../../stores/useDebuggerStore';
 import {
+  NOVA_DARK_THEME,
+  NOVA_LIGHT_THEME,
   NEXCODE_DARK_THEME,
   NEXCODE_BLACK_THEME,
   NEXCODE_NORD_THEME,
@@ -40,7 +42,7 @@ export const MonacoWrapper: React.FC = () => {
   // Sync theme changes with Monaco instance dynamically
   useEffect(() => {
     if (monacoRef.current) {
-      monacoRef.current.editor.setTheme(settings.theme || 'nexcode-dark');
+      monacoRef.current.editor.setTheme(settings.theme || 'nova-dark');
     }
   }, [settings.theme]);
 
@@ -83,12 +85,14 @@ export const MonacoWrapper: React.FC = () => {
     editorRef.current = editor;
     monacoRef.current = monaco;
 
-    // Define custom NEXCODE themes
+    // Define custom NOVA & NEXCODE themes
+    monaco.editor.defineTheme('nova-dark', NOVA_DARK_THEME as any);
+    monaco.editor.defineTheme('nova-light', NOVA_LIGHT_THEME as any);
     monaco.editor.defineTheme('nexcode-dark', NEXCODE_DARK_THEME as any);
     monaco.editor.defineTheme('nexcode-black', NEXCODE_BLACK_THEME as any);
     monaco.editor.defineTheme('nexcode-nord', NEXCODE_NORD_THEME as any);
 
-    monaco.editor.setTheme(settings.theme || 'nexcode-dark');
+    monaco.editor.setTheme(settings.theme || 'nova-dark');
 
     // Register snippet completion providers for TypeScript, Python, Rust
     Object.entries(COMMON_SNIPPETS).forEach(([lang, snippets]) => {

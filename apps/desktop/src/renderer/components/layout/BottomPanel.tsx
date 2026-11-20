@@ -27,12 +27,16 @@ import { useTerminalStore } from '../../stores/useTerminalStore';
 import { useDebuggerStore } from '../../stores/useDebuggerStore';
 import { useEditorStore } from '../../stores/useEditorStore';
 import { useAIStore } from '../../stores/useAIStore';
+import { useSettingsStore } from '../../stores/useSettingsStore';
 
 export const BottomPanel: React.FC = () => {
   const { bottomPanelOpen, activeBottomTab, setBottomTab, toggleBottomPanel, bottomPanelHeight } =
     useUIStore();
   const { rootPath } = useProjectStore();
   const { activeTabId, openTabs } = useEditorStore();
+  const { settings } = useSettingsStore();
+
+  const isLight = settings.theme === 'nova-light';
   const {
     tabs,
     activeTabId: activeTermId,
@@ -127,36 +131,48 @@ export const BottomPanel: React.FC = () => {
   return (
     <div
       style={{ height: isExpanded ? '460px' : `${bottomPanelHeight}px` }}
-      className="bg-nexcode-950 border-t border-nexcode-800 flex flex-col select-none text-xs transition-all z-20 flex-shrink-0"
+      className={`border-t flex flex-col select-none text-xs transition-all z-20 flex-shrink-0 ${
+        isLight
+          ? 'bg-white border-slate-200 text-slate-800'
+          : 'bg-[#080a10] border-[#1c2438] text-slate-200'
+      }`}
     >
       {/* Tab Bar Header */}
-      <div className="h-8 px-3 border-b border-nexcode-800 flex items-center justify-between bg-nexcode-900/80">
+      <div
+        className={`h-8 px-3 border-b flex items-center justify-between ${
+          isLight ? 'bg-slate-50 border-slate-200' : 'bg-[#0c0f18] border-[#1c2438]'
+        }`}
+      >
         <div className="flex items-center space-x-1">
           <button
             onClick={() => setBottomTab('terminal')}
-            className={`px-2.5 py-1 rounded text-[11px] font-medium flex items-center gap-1.5 transition-colors ${
+            className={`px-2.5 py-1 rounded-t-lg text-[11px] font-medium flex items-center gap-1.5 transition-colors relative ${
               activeBottomTab === 'terminal'
-                ? 'text-indigo-400 bg-nexcode-950 font-semibold border-b-2 border-indigo-500'
+                ? isLight
+                  ? 'text-purple-600 bg-white font-semibold border-b-2 border-purple-600'
+                  : 'text-cyan-300 bg-[#121727] font-semibold border-b-2 border-cyan-400'
                 : 'text-slate-400 hover:text-slate-200'
             }`}
           >
             <TerminalIcon className="w-3.5 h-3.5" />
             <span>Terminal</span>
-            <span className="text-[9px] px-1 rounded-full bg-slate-800 text-slate-400 font-mono">
+            <span className="text-[9px] px-1 rounded-full bg-slate-800 text-cyan-400 font-mono">
               {tabs.length}
             </span>
           </button>
 
           <button
             onClick={() => setBottomTab('debug')}
-            className={`px-2.5 py-1 rounded text-[11px] font-medium flex items-center gap-1.5 transition-colors ${
+            className={`px-2.5 py-1 rounded-t-lg text-[11px] font-medium flex items-center gap-1.5 transition-colors ${
               activeBottomTab === 'debug'
-                ? 'text-indigo-400 bg-nexcode-950 font-semibold border-b-2 border-indigo-500'
+                ? isLight
+                  ? 'text-purple-600 bg-white font-semibold border-b-2 border-purple-600'
+                  : 'text-cyan-300 bg-[#121727] font-semibold border-b-2 border-cyan-400'
                 : 'text-slate-400 hover:text-slate-200'
             }`}
           >
             <Bug className="w-3.5 h-3.5" />
-            <span>Debug Console</span>
+            <span>Hata Ayıklama (Debug)</span>
             {isDebugging && (
               <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
             )}
@@ -164,14 +180,16 @@ export const BottomPanel: React.FC = () => {
 
           <button
             onClick={() => setBottomTab('problems')}
-            className={`px-2.5 py-1 rounded text-[11px] font-medium flex items-center gap-1.5 transition-colors ${
+            className={`px-2.5 py-1 rounded-t-lg text-[11px] font-medium flex items-center gap-1.5 transition-colors ${
               activeBottomTab === 'problems'
-                ? 'text-indigo-400 bg-nexcode-950 font-semibold border-b-2 border-indigo-500'
+                ? isLight
+                  ? 'text-purple-600 bg-white font-semibold border-b-2 border-purple-600'
+                  : 'text-cyan-300 bg-[#121727] font-semibold border-b-2 border-cyan-400'
                 : 'text-slate-400 hover:text-slate-200'
             }`}
           >
             <AlertTriangle className="w-3.5 h-3.5" />
-            <span>Problems</span>
+            <span>Problemler</span>
             <span className="text-[10px] px-1 rounded-full bg-slate-800 text-slate-400 font-mono">
               0
             </span>
@@ -179,14 +197,16 @@ export const BottomPanel: React.FC = () => {
 
           <button
             onClick={() => setBottomTab('output')}
-            className={`px-2.5 py-1 rounded text-[11px] font-medium flex items-center gap-1.5 transition-colors ${
+            className={`px-2.5 py-1 rounded-t-lg text-[11px] font-medium flex items-center gap-1.5 transition-colors ${
               activeBottomTab === 'output'
-                ? 'text-indigo-400 bg-nexcode-950 font-semibold border-b-2 border-indigo-500'
+                ? isLight
+                  ? 'text-purple-600 bg-white font-semibold border-b-2 border-purple-600'
+                  : 'text-cyan-300 bg-[#121727] font-semibold border-b-2 border-cyan-400'
                 : 'text-slate-400 hover:text-slate-200'
             }`}
           >
             <FileText className="w-3.5 h-3.5" />
-            <span>Output</span>
+            <span>Çıktı (Output)</span>
           </button>
         </div>
 

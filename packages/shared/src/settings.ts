@@ -1,5 +1,7 @@
+export type ThemeId = 'nova-dark' | 'nova-light' | 'nexcode-dark' | 'nexcode-black' | 'nexcode-nord';
+
 export interface IDESettings {
-  theme: 'nexcode-dark' | 'nexcode-black' | 'nexcode-nord';
+  theme: ThemeId;
   fontSize: number;
   fontFamily: string;
   tabSize: number;
@@ -12,7 +14,7 @@ export interface IDESettings {
 }
 
 export const DEFAULT_SETTINGS: IDESettings = {
-  theme: 'nexcode-dark',
+  theme: 'nova-dark',
   fontSize: 14,
   fontFamily: "'Fira Code', 'JetBrains Mono', 'Cascadia Code', Consolas, monospace",
   tabSize: 2,

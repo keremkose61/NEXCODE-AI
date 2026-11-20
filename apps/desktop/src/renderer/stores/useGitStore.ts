@@ -8,6 +8,7 @@ export interface DiffModalState {
   filePath: string;
   original: string;
   modified: string;
+  onApply?: () => void;
 }
 
 interface GitState {
@@ -28,6 +29,7 @@ interface GitState {
   commit: (message: string) => Promise<{ success: boolean; hash?: string; error?: string }>;
   checkoutBranch: (branch: string, createNew?: boolean) => Promise<{ success: boolean; error?: string }>;
   openDiff: (filePath: string, staged?: boolean) => Promise<void>;
+  showCustomDiff: (filePath: string, original: string, modified: string, onApply?: () => void) => void;
   closeDiff: () => void;
   pull: () => Promise<{ success: boolean; output: string }>;
   push: (userConfirmed: boolean) => Promise<{ success: boolean; output: string; error?: string }>;
@@ -156,6 +158,18 @@ export const useGitStore = create<GitState>((set, get) => ({
     set((state) => ({
       diffModal: { ...state.diffModal, isOpen: false }
     }));
+  },
+
+  showCustomDiff: (filePath: string, original: string, modified: string, onApply?: () => void) => {
+    set({
+      diffModal: {
+        isOpen: true,
+        filePath,
+        original,
+        modified,
+        onApply
+      }
+    });
   },
 
   pull: async () => {

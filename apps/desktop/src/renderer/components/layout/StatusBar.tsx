@@ -7,27 +7,42 @@ import {
   Sparkles,
   Terminal,
   CheckCircle,
-  Shield
+  ShieldCheck
 } from 'lucide-react';
 import { useEditorStore } from '../../stores/useEditorStore';
 import { useAIStore } from '../../stores/useAIStore';
 import { useUIStore } from '../../stores/useUIStore';
+import { useGitStore } from '../../stores/useGitStore';
+import { useSettingsStore } from '../../stores/useSettingsStore';
 
 export const StatusBar: React.FC = () => {
   const { cursorPosition, openTabs, activeTabId } = useEditorStore();
   const { selectedModel, isOllamaRunning, hardware } = useAIStore();
   const { toggleBottomPanel, toggleRightSidebar, rightSidebarOpen, bottomPanelOpen } =
     useUIStore();
+  const { branch } = useGitStore();
+  const { settings } = useSettingsStore();
 
+  const isLight = settings.theme === 'nova-light';
   const activeTab = openTabs.find((t) => t.id === activeTabId);
 
   return (
-    <footer className="h-6 bg-indigo-950/80 border-t border-nexcode-800 flex items-center justify-between px-2 select-none text-[11px] text-slate-300 font-sans z-40">
-      {/* Left items: Git & Diagnostics */}
+    <footer
+      className={`h-6 border-t flex items-center justify-between px-3 select-none text-[11px] font-sans z-40 transition-colors ${
+        isLight
+          ? 'bg-slate-100 border-slate-200 text-slate-700'
+          : 'bg-[#06080e] border-[#1c2438] text-slate-300'
+      }`}
+    >
+      {/* Sol Öğeler: Git Dalı & Hata Tanılama */}
       <div className="flex items-center space-x-3">
-        <div className="flex items-center space-x-1 hover:text-white cursor-pointer transition-colors">
-          <GitBranch className="w-3 h-3 text-indigo-400" />
-          <span>main</span>
+        <div
+          className={`flex items-center space-x-1 cursor-pointer transition-colors ${
+            isLight ? 'hover:text-purple-700' : 'hover:text-cyan-300'
+          }`}
+        >
+          <GitBranch className="w-3 h-3 text-cyan-400" />
+          <span className="font-mono">{branch || 'master'}</span>
         </div>
 
         <div className="flex items-center space-x-2 text-slate-400">
@@ -42,18 +57,20 @@ export const StatusBar: React.FC = () => {
         </div>
       </div>
 
-      {/* Middle items: AI status & Hardware info */}
+      {/* Orta Öğeler: AI Durumu ve Donanım Hızlandırma */}
       <div className="flex items-center space-x-3">
         <button
           onClick={toggleRightSidebar}
-          className={`flex items-center space-x-1.5 px-2 py-0.5 rounded cursor-pointer transition-colors ${
-            rightSidebarOpen ? 'bg-indigo-600/30 text-indigo-300' : 'hover:bg-nexcode-800'
+          className={`flex items-center space-x-1.5 px-2 py-0.5 rounded-md cursor-pointer transition-colors ${
+            rightSidebarOpen
+              ? 'bg-purple-600/20 text-purple-300 border border-purple-500/30'
+              : 'hover:bg-slate-800/40 text-slate-400 hover:text-white'
           }`}
-          title="Toggle AI Assistant"
+          title="AI Asistanını Aç / Kapat"
         >
-          <Sparkles className="w-3 h-3 text-indigo-400" />
-          <span>
-            {isOllamaRunning ? `Ollama: ${selectedModel}` : 'Ollama: Standby (Local)'}
+          <Sparkles className="w-3 h-3 text-cyan-400" />
+          <span className="font-medium">
+            {isOllamaRunning ? `NOVA AI: ${selectedModel}` : 'NOVA AI: Yerel Hazır (Ollama)'}
           </span>
           <span
             className={`w-1.5 h-1.5 rounded-full ${
@@ -63,33 +80,31 @@ export const StatusBar: React.FC = () => {
         </button>
 
         <div className="hidden sm:flex items-center space-x-1 text-slate-400 text-[10px]">
-          <Cpu className="w-3 h-3 text-slate-400" />
+          <Cpu className="w-3 h-3 text-purple-400" />
           <span>{hardware.accelerationMode} (AMD/CPU Safe)</span>
         </div>
       </div>
 
-      {/* Right items: Cursor position, Encoding, Language */}
+      {/* Sağ Öğeler: Terminal Tuşu, İmleç Konumu, Dil */}
       <div className="flex items-center space-x-3 text-slate-400">
         <button
           onClick={toggleBottomPanel}
-          className={`flex items-center space-x-1 px-1.5 py-0.5 rounded hover:text-white transition-colors ${
-            bottomPanelOpen ? 'text-indigo-400' : ''
+          className={`flex items-center space-x-1 px-1.5 py-0.5 rounded hover:text-white transition-colors cursor-pointer ${
+            bottomPanelOpen ? 'text-cyan-400 font-semibold' : ''
           }`}
-          title="Toggle Terminal Panel"
+          title="Terminal Panelini Aç / Kapat"
         >
           <Terminal className="w-3 h-3" />
         </button>
 
-        <div className="hover:text-white cursor-pointer">
-          Ln {cursorPosition.line}, Col {cursorPosition.column}
+        <div className="hover:text-white cursor-pointer font-mono">
+          Satır {cursorPosition.line}, Sütun {cursorPosition.column}
         </div>
-
-        <div className="hidden md:block hover:text-white cursor-pointer">Spaces: 2</div>
 
         <div className="hidden md:block hover:text-white cursor-pointer">UTF-8</div>
 
-        <div className="hover:text-white font-medium cursor-pointer text-indigo-300">
-          {activeTab?.language ? activeTab.language.toUpperCase() : 'TYPESCRIPT'}
+        <div className="hover:text-white font-medium cursor-pointer text-cyan-400 uppercase font-mono">
+          {activeTab?.language ? activeTab.language : 'TYPESCRIPT'}
         </div>
       </div>
     </footer>

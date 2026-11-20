@@ -16,6 +16,7 @@ interface EditorState {
   openFile: (file: { path: string; name: string; content: string }) => void;
   closeTab: (tabId: string) => void;
   setActiveTab: (tabId: string) => void;
+  reorderTabs: (sourceIndex: number, targetIndex: number) => void;
   updateContent: (tabId: string, newContent: string) => void;
   setCursorPosition: (line: number, column: number) => void;
   saveCurrentFile: () => Promise<void>;
@@ -29,29 +30,31 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       filePath: 'welcome.ts',
       fileName: 'welcome.ts',
       content: `// ==========================================
-// NEXCODE AI – Professional Local Desktop IDE
-// Slogan: Code Smarter. Build Beyond.
+// NOVA IDE – Professional AI-Powered Windows IDE
+// Designed for speed, privacy & deep local intelligence.
 // ==========================================
 
-import { createLocalAI } from '@nexcode/ai-engine';
+import { createLocalAI } from '@nova/ai-engine';
 
 interface IDEConfig {
   name: string;
+  theme: 'nova-dark' | 'nova-light';
   engine: 'Ollama' | 'PyTorch' | 'Local';
   privacy: '100% Offline' | 'Zero Cloud Telemetry';
-  acceleration: 'AMD ROCm' | 'NVIDIA CUDA' | 'CPU';
+  acceleration: 'AMD ROCm' | 'NVIDIA CUDA' | 'CPU Safe';
 }
 
-const nexcodeConfig: IDEConfig = {
-  name: 'NEXCODE AI',
-  engine: 'Local',
+const novaConfig: IDEConfig = {
+  name: 'NOVA IDE',
+  theme: 'nova-dark',
+  engine: 'Ollama',
   privacy: '100% Offline',
-  acceleration: 'CPU'
+  acceleration: 'CPU Safe'
 };
 
 export async function bootstrap() {
-  console.log("Welcome to NEXCODE AI:", nexcodeConfig.name);
-  console.log("Local intelligence pipeline initialized.");
+  console.log("Welcome to NOVA IDE:", novaConfig.name);
+  console.log("Local intelligence pipeline ready.");
 }
 `,
       originalContent: '',
@@ -106,6 +109,15 @@ export async function bootstrap() {
   },
 
   setActiveTab: (tabId: string) => set({ activeTabId: tabId }),
+
+  reorderTabs: (sourceIndex: number, targetIndex: number) => {
+    set((state) => {
+      const newTabs = [...state.openTabs];
+      const [moved] = newTabs.splice(sourceIndex, 1);
+      newTabs.splice(targetIndex, 0, moved);
+      return { openTabs: newTabs };
+    });
+  },
 
   updateContent: (tabId: string, newContent: string) => {
     set((state) => ({

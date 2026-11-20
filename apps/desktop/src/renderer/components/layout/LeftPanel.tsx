@@ -26,14 +26,17 @@ import { useUIStore } from '../../stores/useUIStore';
 import { useProjectStore } from '../../stores/useProjectStore';
 import { useEditorStore } from '../../stores/useEditorStore';
 import { useGitStore } from '../../stores/useGitStore';
+import { useSettingsStore } from '../../stores/useSettingsStore';
 import { useNotificationStore } from '../../stores/useNotificationStore';
 import { FileTreeItem } from '../explorer/FileTreeItem';
 
 export const LeftPanel: React.FC = () => {
   const { leftSidebarOpen, activeLeftTab, leftPanelWidth, openPRReview } = useUIStore();
-  const { projectName, rootPath, files, openFolderDialog, refreshFiles, isLoading } =
+  const { projectName, rootPath, files, openFolderDialog, refreshFiles, createFile, createFolder, isLoading } =
     useProjectStore();
   const { openFile, openTabs } = useEditorStore();
+  const { settings } = useSettingsStore();
+  const isLight = settings.theme === 'nova-light';
   const {
     isRepo,
     branch,
@@ -53,8 +56,11 @@ export const LeftPanel: React.FC = () => {
   const { addNotification } = useNotificationStore();
 
   const [searchQuery, setSearchQuery] = useState('');
+  const [fileFilter, setFileFilter] = useState('');
   const [newFileInputOpen, setNewFileInputOpen] = useState(false);
   const [newFileName, setNewFileName] = useState('');
+  const [newFolderInputOpen, setNewFolderInputOpen] = useState(false);
+  const [newFolderName, setNewFolderName] = useState('');
   const [commitMessage, setCommitMessage] = useState('');
   const [showBranchDropdown, setShowBranchDropdown] = useState(false);
   const [newBranchInput, setNewBranchInput] = useState('');
@@ -136,35 +142,62 @@ export const LeftPanel: React.FC = () => {
   return (
     <aside
       style={{ width: `${leftPanelWidth}px` }}
-      className="bg-nexcode-900 border-r border-nexcode-800 flex flex-col select-none text-xs h-full overflow-hidden z-20 flex-shrink-0"
+      className={`border-r flex flex-col select-none text-xs h-full overflow-hidden z-20 flex-shrink-0 transition-colors ${
+        isLight
+          ? 'bg-white border-slate-200 text-slate-800'
+          : 'bg-[#0b0e17] border-[#1c2438] text-slate-200'
+      }`}
     >
-      {/* Tab: File Explorer */}
+      {/* Tab: Proje Gezgini / Explorer */}
       {activeLeftTab === 'explorer' && (
         <div className="flex flex-col h-full overflow-hidden">
-          <div className="h-9 px-3 border-b border-nexcode-800 flex items-center justify-between bg-nexcode-950 font-semibold text-slate-300">
-            <span className="uppercase tracking-wider text-[11px] truncate">
-              {projectName || 'Workspace'}
-            </span>
-            <div className="flex items-center space-x-1 text-slate-400">
+          {/* Header */}
+          <div
+            className={`h-9 px-3 border-b flex items-center justify-between font-semibold ${
+              isLight
+                ? 'bg-slate-50 border-slate-200 text-slate-700'
+                : 'bg-[#080a10] border-[#1c2438] text-slate-300'
+            }`}
+          >
+            <div className="flex items-center space-x-1.5 truncate">
+              <span className="w-1.5 h-1.5 rounded-full bg-cyan-400" />
+              <span className="uppercase tracking-wider text-[11px] font-bold truncate">
+                {projectName || 'Workspace'}
+              </span>
+            </div>
+            <div className="flex items-center space-x-0.5 text-slate-400">
               <button
-                onClick={() => setNewFileInputOpen(!newFileInputOpen)}
-                title="New File"
-                className="p-1 hover:text-white hover:bg-nexcode-850 rounded transition-colors"
+                onClick={() => {
+                  setNewFileInputOpen(!newFileInputOpen);
+                  setNewFolderInputOpen(false);
+                }}
+                title="Yeni Dosya"
+                className="p-1 hover:text-cyan-400 hover:bg-slate-700/20 rounded transition-colors"
               >
                 <FilePlus className="w-3.5 h-3.5" />
               </button>
               <button
+                onClick={() => {
+                  setNewFolderInputOpen(!newFolderInputOpen);
+                  setNewFileInputOpen(false);
+                }}
+                title="Yeni Klasör"
+                className="p-1 hover:text-amber-400 hover:bg-slate-700/20 rounded transition-colors"
+              >
+                <FolderPlus className="w-3.5 h-3.5" />
+              </button>
+              <button
                 onClick={openFolderDialog}
-                title="Open Folder"
-                className="p-1 hover:text-white hover:bg-nexcode-850 rounded transition-colors"
+                title="Klasör Aç..."
+                className="p-1 hover:text-purple-400 hover:bg-slate-700/20 rounded transition-colors"
               >
                 <FolderOpen className="w-3.5 h-3.5" />
               </button>
               <button
                 onClick={refreshFiles}
-                title="Refresh Explorer"
-                className={`p-1 hover:text-white hover:bg-nexcode-850 rounded transition-colors ${
-                  isLoading ? 'animate-spin text-indigo-400' : ''
+                title="Gezgini Yenile"
+                className={`p-1 hover:text-cyan-400 hover:bg-slate-700/20 rounded transition-colors ${
+                  isLoading ? 'animate-spin text-cyan-400' : ''
                 }`}
               >
                 <RefreshCw className="w-3.5 h-3.5" />
@@ -172,8 +205,43 @@ export const LeftPanel: React.FC = () => {
             </div>
           </div>
 
+          {/* Dosya Filtreleme / Arama Çubuğu */}
+          <div
+            className={`px-2 py-1.5 border-b ${
+              isLight ? 'bg-slate-100/70 border-slate-200' : 'bg-[#0d111b] border-[#1c2438]'
+            }`}
+          >
+            <div className="relative flex items-center">
+              <Search className="w-3 h-3 text-slate-400 absolute left-2 pointer-events-none" />
+              <input
+                type="text"
+                value={fileFilter}
+                onChange={(e) => setFileFilter(e.target.value)}
+                placeholder="Dosya filtrele..."
+                className={`w-full pl-7 pr-5 py-1 rounded-md text-[11px] focus:outline-none transition-colors border ${
+                  isLight
+                    ? 'bg-white border-slate-300 text-slate-800 placeholder-slate-400 focus:border-purple-500'
+                    : 'bg-[#121727] border-[#1f283e] text-slate-200 placeholder-slate-500 focus:border-cyan-500'
+                }`}
+              />
+              {fileFilter && (
+                <button
+                  onClick={() => setFileFilter('')}
+                  className="absolute right-1.5 text-slate-400 hover:text-white text-[10px]"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Yeni Dosya Oluşturma Giriş Alanı */}
           {newFileInputOpen && (
-            <div className="p-2 border-b border-nexcode-800 bg-nexcode-950">
+            <div
+              className={`p-2 border-b ${
+                isLight ? 'bg-slate-50 border-slate-200' : 'bg-[#080a10] border-[#1c2438]'
+              }`}
+            >
               <input
                 type="text"
                 autoFocus
@@ -181,6 +249,7 @@ export const LeftPanel: React.FC = () => {
                 onChange={(e) => setNewFileName(e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && newFileName.trim()) {
+                    createFile(newFileName.trim());
                     openFile({
                       path: newFileName.trim(),
                       name: newFileName.trim(),
@@ -192,23 +261,61 @@ export const LeftPanel: React.FC = () => {
                     setNewFileInputOpen(false);
                   }
                 }}
-                placeholder="New filename (e.g. app.ts)..."
-                className="w-full bg-nexcode-900 px-2 py-1 rounded border border-indigo-500/50 text-xs text-slate-100 focus:outline-none"
+                placeholder="Yeni dosya adı (ör. app.ts)..."
+                className={`w-full px-2 py-1 rounded border text-xs focus:outline-none ${
+                  isLight
+                    ? 'bg-white border-purple-400 text-slate-800'
+                    : 'bg-[#121727] border-cyan-500/60 text-slate-100'
+                }`}
               />
             </div>
           )}
 
+          {/* Yeni Klasör Oluşturma Giriş Alanı */}
+          {newFolderInputOpen && (
+            <div
+              className={`p-2 border-b ${
+                isLight ? 'bg-slate-50 border-slate-200' : 'bg-[#080a10] border-[#1c2438]'
+              }`}
+            >
+              <input
+                type="text"
+                autoFocus
+                value={newFolderName}
+                onChange={(e) => setNewFolderName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && newFolderName.trim()) {
+                    createFolder(newFolderName.trim());
+                    setNewFolderName('');
+                    setNewFolderInputOpen(false);
+                  } else if (e.key === 'Escape') {
+                    setNewFolderInputOpen(false);
+                  }
+                }}
+                placeholder="Yeni klasör adı (ör. components)..."
+                className={`w-full px-2 py-1 rounded border text-xs focus:outline-none ${
+                  isLight
+                    ? 'bg-white border-amber-400 text-slate-800'
+                    : 'bg-[#121727] border-amber-500/60 text-slate-100'
+                }`}
+              />
+            </div>
+          )}
+
+          {/* Dosya Ağacı Listesi */}
           <div className="flex-1 overflow-y-auto py-1">
             {files.length > 0 ? (
-              files.map((node) => <FileTreeItem key={node.path} node={node} level={0} />)
+              files.map((node) => (
+                <FileTreeItem key={node.path} node={node} level={0} filter={fileFilter} />
+              ))
             ) : (
               <div className="p-4 text-center text-slate-500">
-                <p>No project folder opened.</p>
+                <p>Çalışma klasörü açılmadı.</p>
                 <button
                   onClick={openFolderDialog}
-                  className="mt-3 px-3 py-1.5 rounded bg-indigo-600 hover:bg-indigo-500 text-white font-medium transition-colors"
+                  className="mt-3 px-3 py-1.5 rounded-lg bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-medium transition-colors shadow-sm"
                 >
-                  Open Workspace
+                  Klasör Aç
                 </button>
               </div>
             )}
@@ -220,17 +327,21 @@ export const LeftPanel: React.FC = () => {
       {activeLeftTab === 'search' && (
         <div className="flex flex-col h-full p-3 space-y-3">
           <span className="font-bold uppercase tracking-wider text-[10px] text-slate-400">
-            Search Workspace
+            Projede Ara
           </span>
           <div className="relative">
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search across files..."
-              className="w-full bg-nexcode-950 border border-nexcode-750 rounded-md py-1.5 pl-8 pr-3 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-indigo-500 text-xs"
+              placeholder="Dosyalar içinde ara..."
+              className={`w-full border rounded-lg py-1.5 pl-8 pr-3 text-xs focus:outline-none transition-colors ${
+                isLight
+                  ? 'bg-slate-50 border-slate-300 text-slate-800 placeholder-slate-400 focus:border-purple-500'
+                  : 'bg-[#080a10] border-[#1c2438] text-slate-100 placeholder-slate-500 focus:border-cyan-500'
+              }`}
             />
-            <Search className="w-3.5 h-3.5 text-slate-500 absolute left-2.5 top-2.5" />
+            <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5" />
           </div>
 
           <div className="flex-1 overflow-y-auto">
@@ -243,9 +354,13 @@ export const LeftPanel: React.FC = () => {
                     onClick={() =>
                       openFile({ path: tab.filePath, name: tab.fileName, content: tab.content })
                     }
-                    className="p-2 rounded bg-nexcode-950 border border-nexcode-800 hover:border-indigo-500/40 cursor-pointer space-y-1 mb-2"
+                    className={`p-2.5 rounded-lg border cursor-pointer space-y-1 mb-2 transition-all ${
+                      isLight
+                        ? 'bg-slate-50 border-slate-200 hover:border-purple-400'
+                        : 'bg-[#101422] border-[#1c2438] hover:border-cyan-500/50 hover:shadow-[0_0_8px_rgba(6,182,212,0.15)]'
+                    }`}
                   >
-                    <div className="font-semibold text-indigo-400 flex items-center space-x-1">
+                    <div className="font-semibold text-cyan-400 flex items-center space-x-1">
                       <FileCode className="w-3.5 h-3.5" />
                       <span>{tab.fileName}</span>
                     </div>
@@ -256,7 +371,7 @@ export const LeftPanel: React.FC = () => {
                 ))
             ) : (
               <div className="text-[11px] text-slate-500 italic text-center py-4">
-                Type a query to search across all open project files.
+                Açık dosyalar arasında aramak için bir kelime yazın.
               </div>
             )}
           </div>
@@ -265,16 +380,28 @@ export const LeftPanel: React.FC = () => {
 
       {/* Tab: Git / Source Control */}
       {activeLeftTab === 'git' && (
-        <div className="flex flex-col h-full overflow-hidden bg-nexcode-950">
+        <div
+          className={`flex flex-col h-full overflow-hidden ${
+            isLight ? 'bg-white' : 'bg-[#080a10]'
+          }`}
+        >
           {/* Header & Branch Management */}
-          <div className="h-9 px-3 border-b border-nexcode-800 flex items-center justify-between bg-nexcode-900/60">
+          <div
+            className={`h-9 px-3 border-b flex items-center justify-between ${
+              isLight ? 'bg-slate-50 border-slate-200' : 'bg-[#0d111b] border-[#1c2438]'
+            }`}
+          >
             <div className="relative">
               <button
                 onClick={() => setShowBranchDropdown(!showBranchDropdown)}
-                className="flex items-center space-x-1.5 px-2 py-0.5 rounded bg-nexcode-850 hover:bg-nexcode-800 text-slate-200 border border-nexcode-750 font-mono text-[11px] transition-colors"
-                title="Switch Git Branch"
+                className={`flex items-center space-x-1.5 px-2 py-0.5 rounded-md border font-mono text-[11px] transition-colors ${
+                  isLight
+                    ? 'bg-slate-100 border-slate-300 text-slate-700'
+                    : 'bg-[#131826] border-[#1c2438] text-slate-200 hover:bg-[#1a2133]'
+                }`}
+                title="Git Dalı Değiştir"
               >
-                <GitBranch className="w-3 h-3 text-indigo-400" />
+                <GitBranch className="w-3 h-3 text-cyan-400" />
                 <span>{branch || 'master'}</span>
                 <ChevronDown className="w-3 h-3 text-slate-400" />
               </button>
