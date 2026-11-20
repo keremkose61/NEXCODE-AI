@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { AIChatMessage, AIModel } from '@nexcode/shared';
+import { AIChatMessage, AIModel, AIAssistantMode, AIChatSession } from '@nexcode/shared';
 import { useEditorStore } from './useEditorStore';
 
 export const DEFAULT_MODELS: AIModel[] = [
@@ -29,6 +29,23 @@ export const DEFAULT_MODELS: AIModel[] = [
   }
 ];
 
+export const ASSISTANT_MODES: { mode: AIAssistantMode; label: string; description: string; icon: string }[] = [
+  { mode: 'chat', label: 'Chat', description: 'General coding assistant & architecture discussion', icon: '💬' },
+  { mode: 'explain', label: 'Explain', description: 'Step-by-step logic and complexity breakdown', icon: '💡' },
+  { mode: 'generate', label: 'Generate', description: 'Create production-ready code with types', icon: '✨' },
+  { mode: 'fix', label: 'Fix Bugs', description: 'Identify bugs and edge cases with corrected code', icon: '🐞' },
+  { mode: 'optimize', label: 'Optimize', description: 'Enhance algorithmic efficiency and memory footprint', icon: '⚡' },
+  { mode: 'convert', label: 'Convert', description: 'Translate code into target language conventions', icon: '🔄' },
+  { mode: 'error_analysis', label: 'Error Analysis', description: 'Diagnose runtime errors and stack traces', icon: '🩺' },
+  { mode: 'docgen', label: 'Documentation', description: 'Generate JSDoc/docstrings and usage guides', icon: '📝' },
+  { mode: 'testgen', label: 'Unit Tests', description: 'High-coverage happy/edge/error case test suites', icon: '🧪' },
+  { mode: 'analyze_file', label: 'Analyze File', description: 'SOLID principles and maintainability review', icon: '📄' },
+  { mode: 'analyze_selection', label: 'Selection', description: 'Focused review of highlighted code fragment', icon: '🎯' },
+  { mode: 'project_context', label: 'Project Context', description: 'Codebase-wide multi-file awareness and synthesis', icon: '🌐' }
+];
+
+const getAPI = () => (typeof window !== 'undefined' ? window.nexcode : undefined);
+
 interface AIState {
   selectedModel: string;
   availableModels: AIModel[];
@@ -43,16 +60,24 @@ interface AIState {
     gpu: string;
     accelerationMode: string;
   };
+  sessions: AIChatSession[];
+  currentSessionId: string | null;
+  activeMode: AIAssistantMode;
   messages: AIChatMessage[];
   isThinking: boolean;
   isStreaming: boolean;
   streamingMessageId: string | null;
 
   setSelectedModel: (model: string) => void;
+  setActiveMode: (mode: AIAssistantMode) => void;
   checkLocalAIStatus: () => Promise<void>;
-  sendMessage: (content: string, codeContext?: string) => Promise<void>;
+  loadSessions: () => Promise<void>;
+  createNewSession: (title?: string) => Promise<AIChatSession | null>;
+  switchSession: (sessionId: string) => Promise<void>;
+  deleteSession: (sessionId: string) => Promise<void>;
+  sendMessage: (content: string, codeContext?: string, mode?: AIAssistantMode) => Promise<void>;
   pullModel: (modelName: string) => Promise<boolean>;
-  clearHistory: () => void;
+  clearHistory: () => Promise<void>;
 }
 
 export const useAIStore = create<AIState>((set, get) => ({
@@ -69,6 +94,9 @@ export const useAIStore = create<AIState>((set, get) => ({
     gpu: 'Detecting local accelerator...',
     accelerationMode: 'CPU'
   },
+  sessions: [],
+  currentSessionId: null,
+  activeMode: 'chat',
   messages: [
     {
       id: 'msg-welcome',
@@ -76,12 +104,12 @@ export const useAIStore = create<AIState>((set, get) => ({
       content: `Hello! I am your **NEXCODE AI Assistant**.
 
 I run **100% locally on your machine** via Ollama. No code leaves your computer.
-You can ask me to:
-- Explain active files or highlighted code
-- Generate tests or optimize logic
-- Scan project directories and assist with architecture
+You have access to 12 specialized modes:
+- **Explain**, **Fix**, **Optimize**, **Generate**, **Convert**
+- **Test Generation**, **Documentation**, **Error Analysis**
+- **File Analysis**, **Selection Analysis**, **Project Context Awareness**
 
-*Tip: Check the model selector in the top bar to verify your local Ollama connection status.*`,
+*Tip: Press \`Ctrl+K\` in the editor for instant Inline AI code modifications.*`,
       timestamp: Date.now()
     }
   ],
@@ -90,14 +118,96 @@ You can ask me to:
   streamingMessageId: null,
 
   setSelectedModel: (model) => set({ selectedModel: model }),
+  setActiveMode: (mode) => set({ activeMode: mode }),
+
+  loadSessions: async () => {
+    const api = getAPI();
+    if (!api) return;
+    try {
+      const sessions = await api.db.getChatSessions();
+      if (sessions && sessions.length > 0) {
+        const activeId = get().currentSessionId || sessions[0].id;
+        set({ sessions, currentSessionId: activeId });
+        const messages = await api.db.getChatMessages(activeId);
+        if (messages && messages.length > 0) {
+          set({ messages });
+        }
+      } else {
+        const initial = await api.db.createChatSession('Welcome Session', get().selectedModel);
+        set({ sessions: [initial], currentSessionId: initial.id });
+        const welcome = get().messages[0];
+        if (welcome) {
+          await api.db.saveChatMessage(initial.id, welcome);
+        }
+      }
+    } catch (err) {
+      console.warn('Failed to load chat sessions:', err);
+    }
+  },
+
+  createNewSession: async (title = 'New Conversation') => {
+    const api = getAPI();
+    if (!api) return null;
+    try {
+      const session = await api.db.createChatSession(title, get().selectedModel);
+      const newWelcome: AIChatMessage = {
+        id: `msg-${Date.now()}`,
+        sessionId: session.id,
+        role: 'assistant',
+        content: `Started new session: **${title}**\n\nHow can I help you build with local AI today?`,
+        timestamp: Date.now()
+      };
+      await api.db.saveChatMessage(session.id, newWelcome);
+
+      set((state) => ({
+        sessions: [session, ...state.sessions],
+        currentSessionId: session.id,
+        messages: [newWelcome]
+      }));
+      return session;
+    } catch (err) {
+      console.error('Failed to create new session:', err);
+      return null;
+    }
+  },
+
+  switchSession: async (sessionId: string) => {
+    const api = getAPI();
+    if (!api) return;
+    try {
+      const messages = await api.db.getChatMessages(sessionId);
+      set({ currentSessionId: sessionId, messages: messages || [] });
+    } catch (err) {
+      console.warn('Failed to switch chat session:', err);
+    }
+  },
+
+  deleteSession: async (sessionId: string) => {
+    const api = getAPI();
+    if (!api) return;
+    try {
+      await api.db.deleteChatSession(sessionId);
+      const remaining = get().sessions.filter((s) => s.id !== sessionId);
+      if (remaining.length > 0) {
+        set({ sessions: remaining, currentSessionId: remaining[0].id });
+        const msgs = await api.db.getChatMessages(remaining[0].id);
+        set({ messages: msgs || [] });
+      } else {
+        await get().createNewSession('General Chat');
+      }
+    } catch (err) {
+      console.error('Failed to delete session:', err);
+    }
+  },
 
   checkLocalAIStatus: async () => {
-    if (!window.nexcode) return;
+    const api = getAPI();
+    if (!api) return;
     try {
-      const hw = await window.nexcode.app.getHardwareInfo();
+      const hw = await api.app.getHardwareInfo();
       set({ hardware: hw });
 
-      const aiStatus = await window.nexcode.ai.checkStatus();
+      const aiStatus = await api.ai.checkStatus();
       if (aiStatus) {
         set({
           isOllamaInstalled: aiStatus.isInstalled,
@@ -106,8 +216,7 @@ You can ask me to:
         });
       }
 
-      // Query full model catalog from local backend
-      const modelsList = await window.nexcode.ai.listModels();
+      const modelsList = await api.ai.listModels();
       if (Array.isArray(modelsList) && modelsList.length > 0) {
         set({
           availableModels: modelsList.map((m: any) => ({
@@ -120,30 +229,48 @@ You can ask me to:
           }))
         });
       }
+
+      await get().loadSessions();
     } catch (err) {
       console.warn('AI status probe error:', err);
     }
   },
 
-  sendMessage: async (userText: string, codeContext?: string) => {
+  sendMessage: async (userText: string, codeContext?: string, mode?: AIAssistantMode) => {
     if (!userText.trim()) return;
+
+    const currentMode = mode || get().activeMode;
+    const api = getAPI();
+    let sessionId = get().currentSessionId;
+    if (!sessionId && api) {
+      const newSession = await get().createNewSession();
+      sessionId = newSession?.id || null;
+    }
 
     const userMsg: AIChatMessage = {
       id: `msg-${Date.now()}`,
+      sessionId: sessionId || undefined,
       role: 'user',
-      content: userText,
-      timestamp: Date.now()
+      content: codeContext ? `${userText}\n\n\`\`\`\n${codeContext}\n\`\`\`` : userText,
+      timestamp: Date.now(),
+      mode: currentMode
     };
 
     const assistantMsgId = `msg-${Date.now() + 1}`;
     const initialAssistantMsg: AIChatMessage = {
       id: assistantMsgId,
+      sessionId: sessionId || undefined,
       role: 'assistant',
       content: '',
       timestamp: Date.now(),
       model: get().selectedModel,
+      mode: currentMode,
       isStreaming: true
     };
+
+    if (api && sessionId) {
+      api.db.saveChatMessage(sessionId, userMsg);
+    }
 
     set((state) => ({
       messages: [...state.messages, userMsg, initialAssistantMsg],
@@ -154,7 +281,6 @@ You can ask me to:
 
     const { selectedModel, isOllamaRunning, hardware } = get();
 
-    // Prepare context files from open editor tabs
     const openTabs = useEditorStore.getState().openTabs;
     const contextFiles = openTabs.map((t) => ({
       path: t.filePath,
@@ -162,9 +288,10 @@ You can ask me to:
     }));
 
     try {
-      if (window.nexcode) {
-        const response = await window.nexcode.ai.sendChat({
+      if (api) {
+        const response = await api.ai.sendChat({
           model: selectedModel,
+          mode: currentMode,
           messages: [
             ...get().messages.filter((m) => m.id !== assistantMsgId).map((m) => ({
               role: m.role,
@@ -179,7 +306,6 @@ You can ask me to:
           const content = response.data.message.content;
           const usage = response.data.usage || {};
 
-          // Simulate fluid token streaming for developer feedback
           let displayed = '';
           const words = content.split(' ');
           for (let i = 0; i < words.length; i++) {
@@ -194,19 +320,28 @@ You can ask me to:
             }
           }
 
+          const finalizedAssistantMsg: AIChatMessage = {
+            id: assistantMsgId,
+            sessionId: sessionId || undefined,
+            role: 'assistant',
+            content,
+            timestamp: Date.now(),
+            model: selectedModel,
+            mode: currentMode,
+            isStreaming: false,
+            tokens: usage.total_tokens,
+            promptTokens: usage.prompt_tokens,
+            completionTokens: usage.completion_tokens,
+            latencyMs: response.latencyMs
+          };
+
+          if (api && sessionId) {
+            api.db.saveChatMessage(sessionId, finalizedAssistantMsg);
+          }
+
           set((state) => ({
             messages: state.messages.map((m) =>
-              m.id === assistantMsgId
-                ? {
-                    ...m,
-                    content,
-                    isStreaming: false,
-                    tokens: usage.total_tokens,
-                    promptTokens: usage.prompt_tokens,
-                    completionTokens: usage.completion_tokens,
-                    latencyMs: response.latencyMs
-                  }
-                : m
+              m.id === assistantMsgId ? finalizedAssistantMsg : m
             ),
             isThinking: false,
             isStreaming: false,
@@ -219,7 +354,6 @@ You can ask me to:
       console.warn('Live chat query error, using offline guidance fallback:', err);
     }
 
-    // Offline guidance fallback
     const fallbackText = !isOllamaRunning
       ? `⚠️ **Local AI Engine Offline**
 
@@ -231,7 +365,7 @@ Ollama was not detected at \`http://localhost:11434\`.
    \`\`\`bash
    ollama run ${selectedModel}
    \`\`\`
-3. Once running, click **Recheck Status** above to start instant, private local coding assistance!
+3. Once running, click **Sync Status** above to start instant, private local coding assistance!
 
 *Current Hardware Profile:*
 - CPU: ${hardware.cpuModel} (${hardware.cpuCores} cores)
@@ -239,15 +373,24 @@ Ollama was not detected at \`http://localhost:11434\`.
 - Accelerator: ${hardware.accelerationMode} (AMD/CPU Safe Mode)`
       : `Model \`${selectedModel}\` is ready and listening in your local workspace.`;
 
+    const fallbackAssistantMsg: AIChatMessage = {
+      id: assistantMsgId,
+      sessionId: sessionId || undefined,
+      role: 'assistant',
+      content: fallbackText,
+      timestamp: Date.now(),
+      model: selectedModel,
+      mode: currentMode,
+      isStreaming: false
+    };
+
+    if (api && sessionId) {
+      api.db.saveChatMessage(sessionId, fallbackAssistantMsg);
+    }
+
     set((state) => ({
       messages: state.messages.map((m) =>
-        m.id === assistantMsgId
-          ? {
-              ...m,
-              content: fallbackText,
-              isStreaming: false
-            }
-          : m
+        m.id === assistantMsgId ? fallbackAssistantMsg : m
       ),
       isThinking: false,
       isStreaming: false,
@@ -256,20 +399,27 @@ Ollama was not detected at \`http://localhost:11434\`.
   },
 
   pullModel: async (modelName: string) => {
-    if (!window.nexcode) return false;
+    const api = getAPI();
+    if (!api) return false;
     try {
-      const res = await window.nexcode.ai.pullModel(modelName);
+      const res = await api.ai.pullModel(modelName);
       return res.success;
     } catch {
       return false;
     }
   },
 
-  clearHistory: () => {
+  clearHistory: async () => {
+    const api = getAPI();
+    const { currentSessionId } = get();
+    if (api && currentSessionId) {
+      await api.db.clearChatSession(currentSessionId);
+    }
     set({
       messages: [
         {
           id: `msg-${Date.now()}`,
+          sessionId: currentSessionId || undefined,
           role: 'assistant',
           content: 'Chat session cleared. How can I assist you with your code today?',
           timestamp: Date.now()

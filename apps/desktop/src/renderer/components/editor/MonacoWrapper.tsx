@@ -3,6 +3,8 @@ import Editor, { OnMount } from '@monaco-editor/react';
 import { useEditorStore } from '../../stores/useEditorStore';
 import { useSettingsStore } from '../../stores/useSettingsStore';
 import { useNotificationStore } from '../../stores/useNotificationStore';
+import { useUIStore } from '../../stores/useUIStore';
+import { useAIStore } from '../../stores/useAIStore';
 import {
   NEXCODE_DARK_THEME,
   NEXCODE_BLACK_THEME,
@@ -15,6 +17,8 @@ export const MonacoWrapper: React.FC = () => {
     useEditorStore();
   const { settings } = useSettingsStore();
   const { addNotification } = useNotificationStore();
+  const { openInlineAI, setRightTab } = useUIStore();
+  const { sendMessage } = useAIStore();
   const editorRef = useRef<any>(null);
   const monacoRef = useRef<any>(null);
 
@@ -88,6 +92,114 @@ export const MonacoWrapper: React.FC = () => {
     editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyH, () => {
       editor.getAction('editor.action.startFindReplaceAction')?.run();
     });
+
+    // Inline AI Trigger Helper
+    const triggerInlineAI = () => {
+      const selection = editor.getSelection();
+      let text = '';
+      let range = undefined;
+      if (selection && !selection.isEmpty()) {
+        text = editor.getModel()?.getValueInRange(selection) || '';
+        range = {
+          startLineNumber: selection.startLineNumber,
+          startColumn: selection.startColumn,
+          endLineNumber: selection.endLineNumber,
+          endColumn: selection.endColumn
+        };
+      } else {
+        const pos = editor.getPosition();
+        if (pos) {
+          const lineContent = editor.getModel()?.getLineContent(pos.lineNumber) || '';
+          text = lineContent;
+          range = {
+            startLineNumber: pos.lineNumber,
+            startColumn: 1,
+            endLineNumber: pos.lineNumber,
+            endColumn: lineContent.length + 1
+          };
+        }
+      }
+      openInlineAI({ text, range });
+    };
+
+    // Keyboard shortcut: Ctrl+K for Inline AI Edit
+    editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyK, () => {
+      triggerInlineAI();
+    });
+
+    // Context Menu AI Actions
+    editor.addAction({
+      id: 'nexcode.ai.inline',
+      label: 'NEXCODE AI: Inline Edit (Ctrl+K)',
+      contextMenuGroupId: '1_ai_assist',
+      contextMenuOrder: 1,
+      run: () => triggerInlineAI()
+    });
+
+    editor.addAction({
+      id: 'nexcode.ai.explain',
+      label: 'NEXCODE AI: Explain Code',
+      contextMenuGroupId: '1_ai_assist',
+      contextMenuOrder: 2,
+      run: () => {
+        const sel = editor.getSelection();
+        const text = sel ? editor.getModel()?.getValueInRange(sel) : '';
+        setRightTab('chat');
+        sendMessage('Explain this code step-by-step with complexity analysis:', text, 'explain');
+      }
+    });
+
+    editor.addAction({
+      id: 'nexcode.ai.fix',
+      label: 'NEXCODE AI: Fix Bugs & Issues',
+      contextMenuGroupId: '1_ai_assist',
+      contextMenuOrder: 3,
+      run: () => {
+        const sel = editor.getSelection();
+        const text = sel ? editor.getModel()?.getValueInRange(sel) : '';
+        setRightTab('chat');
+        sendMessage('Find bugs, logic flaws and potential memory leaks in this code:', text, 'fix');
+      }
+    });
+
+    editor.addAction({
+      id: 'nexcode.ai.optimize',
+      label: 'NEXCODE AI: Optimize Performance',
+      contextMenuGroupId: '1_ai_assist',
+      contextMenuOrder: 4,
+      run: () => {
+        const sel = editor.getSelection();
+        const text = sel ? editor.getModel()?.getValueInRange(sel) : '';
+        setRightTab('chat');
+        sendMessage('Optimize this code for lower memory allocations and faster execution:', text, 'optimize');
+      }
+    });
+
+    editor.addAction({
+      id: 'nexcode.ai.generate-tests',
+      label: 'NEXCODE AI: Generate Unit Tests',
+      contextMenuGroupId: '1_ai_assist',
+      contextMenuOrder: 5,
+      run: () => {
+        const sel = editor.getSelection();
+        const text = sel ? editor.getModel()?.getValueInRange(sel) : '';
+        setRightTab('chat');
+        sendMessage('Generate high-coverage unit tests covering edge cases:', text, 'testgen');
+      }
+    });
+
+    editor.addAction({
+      id: 'nexcode.ai.docgen',
+      label: 'NEXCODE AI: Add Documentation',
+      contextMenuGroupId: '1_ai_assist',
+      contextMenuOrder: 6,
+      run: () => {
+        const sel = editor.getSelection();
+        const text = sel ? editor.getModel()?.getValueInRange(sel) : '';
+        setRightTab('chat');
+        sendMessage('Generate comprehensive documentation/docstrings for this code:', text, 'docgen');
+      }
+    });
   };
 
   if (!activeTab) {
@@ -133,7 +245,8 @@ export const MonacoWrapper: React.FC = () => {
           multiCursorModifier: 'alt',
           suggestOnTriggerCharacters: true,
           acceptSuggestionOnEnter: 'on',
-          quickSuggestions: { other: true, comments: false, strings: true }
+          quickSuggestions: { other: true, comments: false, strings: true },
+          contextmenu: true
         }}
       />
     </div>

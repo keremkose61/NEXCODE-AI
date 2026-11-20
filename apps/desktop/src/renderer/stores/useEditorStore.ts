@@ -2,6 +2,13 @@ import { create } from 'zustand';
 import { OpenTab } from '@nexcode/shared';
 import { detectLanguageFromPath } from '@nexcode/editor';
 
+export interface EditorRange {
+  startLineNumber: number;
+  startColumn: number;
+  endLineNumber: number;
+  endColumn: number;
+}
+
 interface EditorState {
   openTabs: OpenTab[];
   activeTabId: string | null;
@@ -12,6 +19,7 @@ interface EditorState {
   updateContent: (tabId: string, newContent: string) => void;
   setCursorPosition: (line: number, column: number) => void;
   saveCurrentFile: () => Promise<void>;
+  applyCodeReplacement: (replacement: string, range?: EditorRange) => void;
 }
 
 export const useEditorStore = create<EditorState>((set, get) => ({
@@ -133,12 +141,43 @@ export async function bootstrap() {
         }));
       }
     } else {
-      // Memory file save
       set((state) => ({
         openTabs: state.openTabs.map((t) =>
           t.id === activeTabId ? { ...t, isDirty: false, originalContent: t.content } : t
         )
       }));
+    }
+  },
+
+  applyCodeReplacement: (replacement: string, range?: EditorRange) => {
+    const { activeTabId, openTabs } = get();
+    const activeTab = openTabs.find((t) => t.id === activeTabId);
+    if (!activeTab) return;
+
+    if (!range) {
+      // Append or replace
+      get().updateContent(activeTab.id, replacement);
+      return;
+    }
+
+    const lines = activeTab.content.split('\n');
+    const startLineIdx = range.startLineNumber - 1;
+    const endLineIdx = range.endLineNumber - 1;
+
+    if (startLineIdx >= 0 && endLineIdx < lines.length) {
+      const before = lines[startLineIdx].substring(0, range.startColumn - 1);
+      const after = lines[endLineIdx].substring(range.endColumn - 1);
+      const newBlock = before + replacement + after;
+
+      const newLines = [
+        ...lines.slice(0, startLineIdx),
+        ...newBlock.split('\n'),
+        ...lines.slice(endLineIdx + 1)
+      ];
+
+      get().updateContent(activeTab.id, newLines.join('\n'));
+    } else {
+      get().updateContent(activeTab.id, replacement);
     }
   }
 }));

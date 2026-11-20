@@ -3,28 +3,27 @@ import {
   Sparkles,
   Send,
   Trash2,
-  Cpu,
   RefreshCw,
-  Terminal,
   Shield,
   Layers,
-  ChevronRight,
   Bot,
   Zap,
   CheckCircle2,
-  AlertCircle,
   Copy,
   Check,
-  Download
+  Download,
+  Plus,
+  ArrowDownToLine,
+  ChevronDown
 } from 'lucide-react';
-import { useUIStore, RightPanelTab } from '../../stores/useUIStore';
-import { useAIStore } from '../../stores/useAIStore';
+import { useUIStore } from '../../stores/useUIStore';
+import { useAIStore, ASSISTANT_MODES } from '../../stores/useAIStore';
 import { useEditorStore } from '../../stores/useEditorStore';
 import { useNotificationStore } from '../../stores/useNotificationStore';
+import { AIAssistantMode } from '@nexcode/shared';
 
 export const RightPanel: React.FC = () => {
-  const { rightSidebarOpen, activeRightTab, setRightTab, toggleRightSidebar, rightPanelWidth } =
-    useUIStore();
+  const { rightSidebarOpen, activeRightTab, setRightTab, rightPanelWidth } = useUIStore();
   const {
     messages,
     sendMessage,
@@ -36,17 +35,26 @@ export const RightPanel: React.FC = () => {
     hardware,
     checkLocalAIStatus,
     clearHistory,
-    pullModel
+    pullModel,
+    sessions,
+    currentSessionId,
+    activeMode,
+    setActiveMode,
+    createNewSession,
+    switchSession,
+    deleteSession
   } = useAIStore();
-  const { openTabs, activeTabId } = useEditorStore();
+  const { openTabs, activeTabId, applyCodeReplacement } = useEditorStore();
   const { addNotification } = useNotificationStore();
 
   const [input, setInput] = useState('');
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [showSessionsDropdown, setShowSessionsDropdown] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const activeTab = openTabs.find((t) => t.id === activeTabId);
   const activeModelMeta = availableModels.find((m) => m.name === selectedModel);
+  const currentSession = sessions.find((s) => s.id === currentSessionId);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -54,9 +62,9 @@ export const RightPanel: React.FC = () => {
 
   if (!rightSidebarOpen) return null;
 
-  const handleSend = () => {
+  const handleSend = (overrideMode?: AIAssistantMode) => {
     if (!input.trim() || isThinking) return;
-    sendMessage(input, activeTab?.content);
+    sendMessage(input, activeTab?.content, overrideMode || activeMode);
     setInput('');
   };
 
@@ -65,6 +73,15 @@ export const RightPanel: React.FC = () => {
     setCopiedId(id);
     addNotification({ type: 'info', message: 'Copied message to clipboard.' });
     setTimeout(() => setCopiedId(null), 2000);
+  };
+
+  const handleInsertCode = (code: string) => {
+    applyCodeReplacement(code);
+    addNotification({
+      type: 'success',
+      title: 'Inserted Code',
+      message: 'Code block inserted into active editor file.'
+    });
   };
 
   const handlePullModel = async () => {
@@ -86,12 +103,10 @@ export const RightPanel: React.FC = () => {
     }
   };
 
-  const promptChips = [
-    { label: 'Explain File', icon: '💡', prompt: `Please explain the structure and logic of ${activeTab?.fileName || 'the current code'}.` },
-    { label: 'Generate Tests', icon: '🧪', prompt: `Generate comprehensive unit tests for ${activeTab?.fileName || 'this code'}.` },
-    { label: 'Optimize Logic', icon: '⚡', prompt: `Analyze and suggest performance optimizations for this file.` },
-    { label: 'Security Review', icon: '🛡️', prompt: `Check this code for security vulnerabilities, edge cases, and bounds.` }
-  ];
+  const extractCodeBlock = (content: string): string | null => {
+    const match = content.match(/```(?:\w+)?\n([\s\S]*?)```/);
+    return match ? match[1] : null;
+  };
 
   return (
     <aside
@@ -110,7 +125,7 @@ export const RightPanel: React.FC = () => {
             }`}
           >
             <Sparkles className="w-3.5 h-3.5" />
-            <span>AI Chat</span>
+            <span>AI Assistant</span>
           </button>
           <button
             onClick={() => setRightTab('agent')}
@@ -138,8 +153,15 @@ export const RightPanel: React.FC = () => {
 
         <div className="flex items-center space-x-1">
           <button
+            onClick={() => createNewSession()}
+            title="Start New Chat Session"
+            className="p-1 hover:text-indigo-300 hover:bg-nexcode-850 rounded text-slate-400 transition-colors"
+          >
+            <Plus className="w-3.5 h-3.5" />
+          </button>
+          <button
             onClick={clearHistory}
-            title="Clear Chat History"
+            title="Clear Current Session History"
             className="p-1 hover:text-rose-400 hover:bg-nexcode-850 rounded text-slate-400 transition-colors"
           >
             <Trash2 className="w-3.5 h-3.5" />
@@ -147,15 +169,28 @@ export const RightPanel: React.FC = () => {
         </div>
       </div>
 
-      {/* Model & Local Hardware Status Banner */}
-      <div className="px-3 py-1.5 bg-nexcode-950/80 border-b border-nexcode-800 flex items-center justify-between text-[10px]">
-        <div className="flex items-center space-x-1.5 truncate">
+      {/* Session Selector & Ollama Connection Bar */}
+      <div className="px-3 py-1.5 bg-nexcode-950/80 border-b border-nexcode-800 flex items-center justify-between text-[10px] relative">
+        <div className="flex items-center space-x-1.5 truncate max-w-[60%]">
+          <button
+            onClick={() => setShowSessionsDropdown(!showSessionsDropdown)}
+            className="flex items-center space-x-1 px-1.5 py-0.5 rounded bg-nexcode-850 hover:bg-nexcode-800 text-slate-300 border border-nexcode-750 truncate transition-colors"
+            title="Switch Session"
+          >
+            <span className="truncate max-w-[110px]">{currentSession?.title || 'Session'}</span>
+            <ChevronDown className="w-3 h-3 text-slate-400 flex-shrink-0" />
+          </button>
+
           <span
-            className={`w-2 h-2 rounded-full ${
+            className={`w-2 h-2 rounded-full flex-shrink-0 ${
               isOllamaRunning ? 'bg-emerald-400 animate-pulse' : 'bg-amber-500'
             }`}
+            title={isOllamaRunning ? 'Local Ollama Connected' : 'Local Ollama Offline'}
           />
-          <span className="font-mono text-slate-300 font-medium truncate">{selectedModel}</span>
+          <span className="font-mono text-slate-400 truncate">{selectedModel}</span>
+        </div>
+
+        <div className="flex items-center space-x-1">
           {activeModelMeta && !activeModelMeta.isAvailableLocally && (
             <button
               onClick={handlePullModel}
@@ -166,15 +201,81 @@ export const RightPanel: React.FC = () => {
               <span>Pull</span>
             </button>
           )}
+          <button
+            onClick={checkLocalAIStatus}
+            title="Re-check Local Ollama Connection"
+            className="flex items-center space-x-1 text-indigo-400 hover:text-indigo-300 hover:underline"
+          >
+            <RefreshCw className="w-3 h-3" />
+            <span>Sync</span>
+          </button>
         </div>
-        <button
-          onClick={checkLocalAIStatus}
-          title="Re-check Local Ollama Connection"
-          className="flex items-center space-x-1 text-indigo-400 hover:text-indigo-300 hover:underline"
-        >
-          <RefreshCw className="w-3 h-3" />
-          <span>Sync Status</span>
-        </button>
+
+        {/* Sessions Dropdown Menu */}
+        {showSessionsDropdown && (
+          <div className="absolute top-8 left-3 z-50 w-64 bg-nexcode-900 border border-nexcode-750 rounded-lg shadow-xl p-1.5 space-y-1">
+            <div className="flex items-center justify-between px-2 py-1 text-[10px] font-semibold text-slate-400 border-b border-nexcode-800">
+              <span>Saved Chat Sessions ({sessions.length})</span>
+              <button
+                onClick={() => {
+                  createNewSession();
+                  setShowSessionsDropdown(false);
+                }}
+                className="text-indigo-400 hover:text-indigo-300 flex items-center space-x-0.5"
+              >
+                <Plus className="w-2.5 h-2.5" />
+                <span>New</span>
+              </button>
+            </div>
+            <div className="max-h-48 overflow-y-auto space-y-0.5">
+              {sessions.map((s) => (
+                <div
+                  key={s.id}
+                  className={`flex items-center justify-between px-2 py-1.5 rounded cursor-pointer transition-colors ${
+                    s.id === currentSessionId
+                      ? 'bg-indigo-600/30 text-indigo-200'
+                      : 'hover:bg-nexcode-800 text-slate-300'
+                  }`}
+                  onClick={() => {
+                    switchSession(s.id);
+                    setShowSessionsDropdown(false);
+                  }}
+                >
+                  <span className="truncate text-[11px]">{s.title}</span>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      deleteSession(s.id);
+                    }}
+                    className="p-0.5 text-slate-500 hover:text-rose-400 transition-colors"
+                    title="Delete session"
+                  >
+                    <Trash2 className="w-2.5 h-2.5" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Mode Selector Chips Bar (12 Modes) */}
+      <div className="px-2 py-1.5 border-b border-nexcode-800 bg-nexcode-950 flex items-center space-x-1 overflow-x-auto no-scrollbar">
+        {ASSISTANT_MODES.map((item) => (
+          <button
+            key={item.mode}
+            onClick={() => setActiveMode(item.mode)}
+            title={item.description}
+            className={`px-2 py-0.5 rounded text-[10px] font-medium flex items-center space-x-1 whitespace-nowrap transition-all ${
+              activeMode === item.mode
+                ? 'bg-indigo-600 text-white shadow-sm'
+                : 'bg-nexcode-850 text-slate-400 hover:text-slate-200 hover:bg-nexcode-800'
+            }`}
+          >
+            <span>{item.icon}</span>
+            <span>{item.label}</span>
+          </button>
+        ))}
       </div>
 
       {/* Tab: Chat */}
@@ -182,77 +283,92 @@ export const RightPanel: React.FC = () => {
         <div className="flex-1 flex flex-col overflow-hidden">
           {/* Messages Scroll Area */}
           <div className="flex-1 overflow-y-auto p-3 space-y-3.5">
-            {messages.map((msg) => (
-              <div
-                key={msg.id}
-                className={`flex flex-col ${
-                  msg.role === 'user' ? 'items-end' : 'items-start'
-                }`}
-              >
-                <div className="flex items-center space-x-1.5 text-[10px] text-slate-500 mb-1 px-1">
-                  <span>{msg.role === 'user' ? 'You' : 'NEXCODE Local AI'}</span>
-                  {msg.model && <span>• {msg.model}</span>}
-                  {msg.latencyMs !== undefined && (
-                    <span className="text-emerald-400 font-mono">⚡ {msg.latencyMs}ms</span>
-                  )}
-                  {msg.tokens !== undefined && (
-                    <span className="text-slate-400 font-mono">({msg.tokens} tokens)</span>
-                  )}
-                </div>
-
+            {messages.map((msg) => {
+              const codeBlock = extractCodeBlock(msg.content);
+              return (
                 <div
-                  className={`p-3 rounded-xl max-w-[95%] leading-relaxed text-xs break-words shadow-sm relative group ${
-                    msg.role === 'user'
-                      ? 'bg-indigo-600 text-white rounded-br-none'
-                      : 'bg-nexcode-950 border border-nexcode-800 text-slate-200 rounded-bl-none'
+                  key={msg.id}
+                  className={`flex flex-col ${
+                    msg.role === 'user' ? 'items-end' : 'items-start'
                   }`}
                 >
-                  <div className="whitespace-pre-wrap">
-                    {msg.content}
-                    {msg.isStreaming && (
-                      <span className="inline-block w-1.5 h-3.5 bg-indigo-400 ml-1 animate-pulse align-middle" />
+                  <div className="flex items-center space-x-1.5 text-[10px] text-slate-500 mb-1 px-1">
+                    <span>{msg.role === 'user' ? 'You' : 'NEXCODE Local AI'}</span>
+                    {msg.mode && (
+                      <span className="text-indigo-400 uppercase font-mono text-[9px] bg-indigo-500/10 px-1 py-0.2 rounded">
+                        {msg.mode}
+                      </span>
+                    )}
+                    {msg.model && <span>• {msg.model}</span>}
+                    {msg.latencyMs !== undefined && (
+                      <span className="text-emerald-400 font-mono">⚡ {msg.latencyMs}ms</span>
+                    )}
+                    {msg.tokens !== undefined && (
+                      <span className="text-slate-400 font-mono">({msg.tokens} tokens)</span>
                     )}
                   </div>
 
-                  {msg.role === 'assistant' && msg.content && !msg.isStreaming && (
-                    <button
-                      onClick={() => handleCopy(msg.id, msg.content)}
-                      className="absolute right-2 bottom-1.5 opacity-0 group-hover:opacity-100 p-1 rounded bg-nexcode-850 hover:bg-nexcode-750 text-slate-400 hover:text-white transition-all"
-                      title="Copy Message"
-                    >
-                      {copiedId === msg.id ? (
-                        <Check className="w-3 h-3 text-emerald-400" />
-                      ) : (
-                        <Copy className="w-3 h-3" />
+                  <div
+                    className={`p-3 rounded-xl max-w-[95%] leading-relaxed text-xs break-words shadow-sm relative group ${
+                      msg.role === 'user'
+                        ? 'bg-indigo-600 text-white rounded-br-none'
+                        : 'bg-nexcode-950 border border-nexcode-800 text-slate-200 rounded-bl-none'
+                    }`}
+                  >
+                    <div className="whitespace-pre-wrap">
+                      {msg.content}
+                      {msg.isStreaming && (
+                        <span className="inline-block w-1.5 h-3.5 bg-indigo-400 ml-1 animate-pulse align-middle" />
                       )}
-                    </button>
-                  )}
+                    </div>
+
+                    {msg.role === 'assistant' && msg.content && !msg.isStreaming && (
+                      <div className="flex items-center space-x-1 mt-2 pt-1 border-t border-nexcode-800/60 justify-end">
+                        {codeBlock && (
+                          <button
+                            onClick={() => handleInsertCode(codeBlock)}
+                            className="flex items-center space-x-1 px-2 py-0.5 rounded bg-emerald-600/20 text-emerald-300 hover:bg-emerald-600 hover:text-white transition-colors text-[10px]"
+                            title="Insert into active file"
+                          >
+                            <ArrowDownToLine className="w-3 h-3" />
+                            <span>Insert</span>
+                          </button>
+                        )}
+                        <button
+                          onClick={() => handleCopy(msg.id, msg.content)}
+                          className="flex items-center space-x-1 px-2 py-0.5 rounded bg-nexcode-850 hover:bg-nexcode-750 text-slate-400 hover:text-white transition-colors text-[10px]"
+                          title="Copy Message"
+                        >
+                          {copiedId === msg.id ? (
+                            <Check className="w-3 h-3 text-emerald-400" />
+                          ) : (
+                            <Copy className="w-3 h-3" />
+                          )}
+                          <span>Copy</span>
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
 
             {isThinking && (
               <div className="flex items-center space-x-2 text-indigo-400 p-2 bg-indigo-500/10 rounded-lg border border-indigo-500/20 text-xs">
                 <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                <span>Local model is computing response...</span>
+                <span>Local model ({selectedModel}) is computing response...</span>
               </div>
             )}
 
             <div ref={messagesEndRef} />
           </div>
 
-          {/* Prompt Chips */}
-          <div className="px-2.5 py-1.5 border-t border-nexcode-800/80 bg-nexcode-950/60 flex items-center space-x-1.5 overflow-x-auto no-scrollbar">
-            {promptChips.map((chip) => (
-              <button
-                key={chip.label}
-                onClick={() => setInput(chip.prompt)}
-                className="flex items-center space-x-1 px-2 py-1 rounded-md bg-nexcode-850 hover:bg-nexcode-800 text-slate-300 border border-nexcode-750 text-[10px] whitespace-nowrap transition-colors"
-              >
-                <span>{chip.icon}</span>
-                <span>{chip.label}</span>
-              </button>
-            ))}
+          {/* Quick Context & Mode Indicator */}
+          <div className="px-2.5 py-1 border-t border-nexcode-800 bg-nexcode-950/80 flex items-center justify-between text-[10px] text-slate-400">
+            <span className="truncate">
+              Target: <strong className="text-slate-200">{activeTab?.fileName || 'No open file'}</strong>
+            </span>
+            <span className="text-indigo-400 font-medium">Mode: {activeMode}</span>
           </div>
 
           {/* Chat Input Area */}
@@ -263,21 +379,17 @@ export const RightPanel: React.FC = () => {
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
                 rows={2}
-                placeholder={
-                  isOllamaRunning
-                    ? `Ask local ${selectedModel}... (Enter to send)`
-                    : 'Ask anything (Ollama offline guide will assist)...'
-                }
+                placeholder={`Instruct ${activeMode} on ${activeTab?.fileName || 'code'}... (Enter to send)`}
                 className="w-full bg-transparent p-2 text-xs text-slate-100 placeholder-slate-500 focus:outline-none resize-none"
               />
 
               <div className="px-2 py-1 border-t border-nexcode-800/50 flex items-center justify-between text-[10px]">
                 <div className="flex items-center space-x-1 text-slate-500">
                   <Shield className="w-3 h-3 text-emerald-400" />
-                  <span>100% Local • Zero Telemetry</span>
+                  <span>100% Local • Zero Cloud Telemetry</span>
                 </div>
                 <button
-                  onClick={handleSend}
+                  onClick={() => handleSend()}
                   disabled={!input.trim() || isThinking}
                   className="p-1.5 rounded-md bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 text-white transition-colors"
                 >
@@ -347,7 +459,7 @@ export const RightPanel: React.FC = () => {
             </div>
             <div className="flex items-center justify-between text-[11px]">
               <span className="text-slate-400">Memory Engine:</span>
-              <span className="font-mono text-emerald-400">SQLite Vector DB</span>
+              <span className="font-mono text-emerald-400">SQLite Store + Vector Index</span>
             </div>
           </div>
         </div>

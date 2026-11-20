@@ -1,5 +1,12 @@
 import { contextBridge, ipcRenderer } from 'electron';
-import { IPC_CHANNELS, FileNode, RecentProject, IDESettings } from '@nexcode/shared';
+import {
+  IPC_CHANNELS,
+  FileNode,
+  RecentProject,
+  IDESettings,
+  AIChatSession,
+  AIChatMessage
+} from '@nexcode/shared';
 
 const nexcodeAPI = {
   window: {
@@ -47,7 +54,18 @@ const nexcodeAPI = {
       ipcRenderer.invoke(IPC_CHANNELS.DB_ADD_RECENT_PROJECT, name, projectPath),
     getSettings: (): Promise<IDESettings> => ipcRenderer.invoke(IPC_CHANNELS.DB_GET_SETTINGS),
     saveSettings: (settings: Partial<IDESettings>): Promise<IDESettings> =>
-      ipcRenderer.invoke(IPC_CHANNELS.DB_SAVE_SETTINGS, settings)
+      ipcRenderer.invoke(IPC_CHANNELS.DB_SAVE_SETTINGS, settings),
+    getChatSessions: (): Promise<AIChatSession[]> => ipcRenderer.invoke(IPC_CHANNELS.DB_GET_CHAT_SESSIONS),
+    createChatSession: (title: string, model: string): Promise<AIChatSession> =>
+      ipcRenderer.invoke(IPC_CHANNELS.DB_CREATE_CHAT_SESSION, title, model),
+    deleteChatSession: (sessionId: string): Promise<boolean> =>
+      ipcRenderer.invoke(IPC_CHANNELS.DB_DELETE_CHAT_SESSION, sessionId),
+    getChatMessages: (sessionId: string): Promise<AIChatMessage[]> =>
+      ipcRenderer.invoke(IPC_CHANNELS.DB_GET_CHAT_MESSAGES, sessionId),
+    saveChatMessage: (sessionId: string, message: AIChatMessage): Promise<AIChatMessage> =>
+      ipcRenderer.invoke(IPC_CHANNELS.DB_SAVE_CHAT_MESSAGE, sessionId, message),
+    clearChatSession: (sessionId: string): Promise<boolean> =>
+      ipcRenderer.invoke(IPC_CHANNELS.DB_CLEAR_CHAT_SESSION, sessionId)
   }
 };
 

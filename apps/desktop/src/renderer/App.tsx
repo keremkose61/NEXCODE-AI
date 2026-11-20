@@ -14,6 +14,7 @@ import { ToastContainer } from './components/ui/ToastContainer';
 import { ConfirmDeleteModal } from './components/ui/ConfirmDeleteModal';
 import { RenameModal } from './components/ui/RenameModal';
 import { RecentProjectsModal } from './components/ui/RecentProjectsModal';
+import { InlineAIBar } from './components/ui/InlineAIBar';
 import { useAIStore } from './stores/useAIStore';
 import { useUIStore } from './stores/useUIStore';
 import { useEditorStore } from './stores/useEditorStore';
@@ -37,7 +38,8 @@ export const App: React.FC = () => {
     toggleBottomPanel,
     toggleRightSidebar,
     openCommandPalette,
-    openQuickOpen
+    openQuickOpen,
+    openInlineAI
   } = useUIStore();
   const { saveCurrentFile } = useEditorStore();
   const { initFileWatcher, loadRecentProjects } = useProjectStore();
@@ -97,6 +99,13 @@ export const App: React.FC = () => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'j') {
         e.preventDefault();
         toggleBottomPanel();
+        return;
+      }
+
+      // Ctrl+K: Inline AI Edit
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        openInlineAI();
         return;
       }
 
@@ -187,6 +196,7 @@ export const App: React.FC = () => {
       <StatusBar />
 
       {/* Interactive Overlays & Safety Modals */}
+      <InlineAIBar />
       <CommandPalette />
       <QuickOpen />
       <SettingsModal />

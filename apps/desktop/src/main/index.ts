@@ -367,6 +367,30 @@ ipcMain.handle(IPC_CHANNELS.DB_SAVE_SETTINGS, (_, settings: Partial<IDESettings>
   return dbManager.saveSettings(settings);
 });
 
+ipcMain.handle(IPC_CHANNELS.DB_GET_CHAT_SESSIONS, () => {
+  return dbManager.getChatSessions();
+});
+
+ipcMain.handle(IPC_CHANNELS.DB_CREATE_CHAT_SESSION, (_, title: string, model: string) => {
+  return dbManager.createChatSession(title, model);
+});
+
+ipcMain.handle(IPC_CHANNELS.DB_DELETE_CHAT_SESSION, (_, sessionId: string) => {
+  return dbManager.deleteChatSession(sessionId);
+});
+
+ipcMain.handle(IPC_CHANNELS.DB_GET_CHAT_MESSAGES, (_, sessionId: string) => {
+  return dbManager.getChatMessages(sessionId);
+});
+
+ipcMain.handle(IPC_CHANNELS.DB_SAVE_CHAT_MESSAGE, (_, sessionId: string, message: any) => {
+  return dbManager.saveChatMessage(sessionId, message);
+});
+
+ipcMain.handle(IPC_CHANNELS.DB_CLEAR_CHAT_SESSION, (_, sessionId: string) => {
+  return dbManager.clearChatSession(sessionId);
+});
+
 ipcMain.handle(IPC_CHANNELS.FS_WATCH_START, (_, dirPath: string) => {
   fileWatcher.startWatching(dirPath, mainWindow);
 });

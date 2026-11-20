@@ -10,6 +10,8 @@ class ChatMessage(BaseModel):
 class ChatCompletionRequest(BaseModel):
     model: str = Field(default="qwen2.5-coder:7b", description="Local model name in Ollama")
     messages: List[ChatMessage]
+    mode: Optional[str] = Field(default="chat", description="AI Assistant mode (1 of 12 supported modes)")
+    instruction: Optional[str] = Field(default=None, description="Optional extra instruction or directive")
     stream: bool = False
     temperature: float = 0.2
     context_files: Optional[List[Dict[str, str]]] = Field(

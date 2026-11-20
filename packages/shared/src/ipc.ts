@@ -41,7 +41,13 @@ export const IPC_CHANNELS = {
   DB_GET_SETTINGS: 'db:get-settings',
   DB_SAVE_SETTINGS: 'db:save-settings',
   DB_GET_RECENT_PROJECTS: 'db:get-recent-projects',
-  DB_ADD_RECENT_PROJECT: 'db:add-recent-project'
+  DB_ADD_RECENT_PROJECT: 'db:add-recent-project',
+  DB_GET_CHAT_SESSIONS: 'db:get-chat-sessions',
+  DB_CREATE_CHAT_SESSION: 'db:create-chat-session',
+  DB_DELETE_CHAT_SESSION: 'db:delete-chat-session',
+  DB_GET_CHAT_MESSAGES: 'db:get-chat-messages',
+  DB_SAVE_CHAT_MESSAGE: 'db:save-chat-message',
+  DB_CLEAR_CHAT_SESSION: 'db:clear-chat-session'
 } as const;
 
 export type IPCChannel = typeof IPC_CHANNELS[keyof typeof IPC_CHANNELS];

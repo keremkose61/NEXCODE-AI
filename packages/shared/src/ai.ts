@@ -1,11 +1,35 @@
 export type AIMessageRole = 'user' | 'assistant' | 'system';
 
+export type AIAssistantMode =
+  | 'chat'
+  | 'explain'
+  | 'generate'
+  | 'fix'
+  | 'optimize'
+  | 'convert'
+  | 'error_analysis'
+  | 'docgen'
+  | 'testgen'
+  | 'analyze_file'
+  | 'analyze_selection'
+  | 'project_context';
+
+export interface AIChatSession {
+  id: string;
+  title: string;
+  model: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
 export interface AIChatMessage {
   id: string;
+  sessionId?: string;
   role: AIMessageRole;
   content: string;
   timestamp: number;
   model?: string;
+  mode?: AIAssistantMode;
   isStreaming?: boolean;
   contextFiles?: string[];
   tokens?: number;

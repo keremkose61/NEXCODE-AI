@@ -4,6 +4,16 @@ export type LeftPanelTab = 'explorer' | 'search' | 'git' | 'extensions' | 'ai-pr
 export type RightPanelTab = 'chat' | 'agent' | 'context';
 export type BottomPanelTab = 'terminal' | 'problems' | 'output' | 'debug';
 
+export interface InlineAIContext {
+  text: string;
+  range?: {
+    startLineNumber: number;
+    startColumn: number;
+    endLineNumber: number;
+    endColumn: number;
+  };
+}
+
 interface UIState {
   // Panel visibilities
   leftSidebarOpen: boolean;
@@ -21,6 +31,8 @@ interface UIState {
   // Modals & Palettes
   isCommandPaletteOpen: boolean;
   isQuickOpenOpen: boolean;
+  isInlineAIOpen: boolean;
+  inlineAIContext: InlineAIContext | null;
 
   // Actions
   toggleLeftSidebar: () => void;
@@ -38,6 +50,9 @@ interface UIState {
   closeCommandPalette: () => void;
   openQuickOpen: () => void;
   closeQuickOpen: () => void;
+
+  openInlineAI: (context?: InlineAIContext) => void;
+  closeInlineAI: () => void;
 }
 
 export const useUIStore = create<UIState>((set) => ({
@@ -54,6 +69,8 @@ export const useUIStore = create<UIState>((set) => ({
 
   isCommandPaletteOpen: false,
   isQuickOpenOpen: false,
+  isInlineAIOpen: false,
+  inlineAIContext: null,
 
   toggleLeftSidebar: () => set((state) => ({ leftSidebarOpen: !state.leftSidebarOpen })),
   setLeftTab: (tab) =>
@@ -84,5 +101,8 @@ export const useUIStore = create<UIState>((set) => ({
   closeCommandPalette: () => set({ isCommandPaletteOpen: false }),
 
   openQuickOpen: () => set({ isQuickOpenOpen: true }),
-  closeQuickOpen: () => set({ isQuickOpenOpen: false })
+  closeQuickOpen: () => set({ isQuickOpenOpen: false }),
+
+  openInlineAI: (context) => set({ isInlineAIOpen: true, inlineAIContext: context || null }),
+  closeInlineAI: () => set({ isInlineAIOpen: false, inlineAIContext: null })
 }));
