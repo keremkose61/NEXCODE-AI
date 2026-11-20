@@ -301,21 +301,43 @@ ipcMain.handle(IPC_CHANNELS.AI_CHECK_STATUS, async () => {
 });
 
 ipcMain.handle(IPC_CHANNELS.AI_LIST_MODELS, async () => {
+  // 1. Try Python AI engine first
   const res = await makeHttpRequest<any>({
     hostname: '127.0.0.1',
     port: 8765,
     path: '/api/v1/models',
     method: 'GET',
-    timeout: 2000
+    timeout: 1500
   });
-  if (res.success && Array.isArray(res.data)) {
+  if (res.success && Array.isArray(res.data) && res.data.length > 0) {
     return res.data;
   }
+
+  // 2. Direct Ollama fallback (/api/tags)
+  const direct = await makeHttpRequest<any>({
+    hostname: '127.0.0.1',
+    port: 11434,
+    path: '/api/tags',
+    method: 'GET',
+    timeout: 1500
+  });
+  if (direct.success && direct.data?.models) {
+    return direct.data.models.map((m: any) => ({
+      name: m.name,
+      display_name: m.name,
+      size: m.size ? `${(m.size / (1024 * 1024 * 1024)).toFixed(1)} GB` : 'Unknown',
+      is_available_locally: true,
+      description: 'Locally available Ollama model',
+      recommended_hardware: 'CPU / GPU'
+    }));
+  }
+
   return [];
 });
 
 ipcMain.handle(IPC_CHANNELS.AI_SEND_CHAT, async (_, payload: any) => {
   const startTime = Date.now();
+  // 1. Try Python backend first
   const res = await makeHttpRequest<any>(
     {
       hostname: '127.0.0.1',
@@ -330,23 +352,66 @@ ipcMain.handle(IPC_CHANNELS.AI_SEND_CHAT, async (_, payload: any) => {
     payload
   );
 
-  const latencyMs = Date.now() - startTime;
   if (res.success && res.data) {
     return {
       success: true,
-      latencyMs,
+      latencyMs: Date.now() - startTime,
       data: res.data
     };
   }
 
+  // 2. Direct Ollama fallback (/api/chat)
+  try {
+    const ollamaMessages = (payload.messages || []).map((m: any) => ({
+      role: m.role || 'user',
+      content: m.content || ''
+    }));
+
+    const ollamaRes = await makeHttpRequest<any>(
+      {
+        hostname: '127.0.0.1',
+        port: 11434,
+        path: '/api/chat',
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        timeout: 120000
+      },
+      {
+        model: payload.model || 'qwen2.5-coder:7b',
+        messages: ollamaMessages,
+        stream: false
+      }
+    );
+
+    if (ollamaRes.success && ollamaRes.data?.message) {
+      return {
+        success: true,
+        latencyMs: Date.now() - startTime,
+        data: {
+          message: ollamaRes.data.message,
+          usage: {
+            prompt_tokens: ollamaRes.data.prompt_eval_count || 0,
+            completion_tokens: ollamaRes.data.eval_count || 0,
+            total_tokens: (ollamaRes.data.prompt_eval_count || 0) + (ollamaRes.data.eval_count || 0)
+          }
+        }
+      };
+    }
+  } catch (err: any) {
+    console.warn('[NEXCODE AI] Direct Ollama chat failed:', err);
+  }
+
   return {
     success: false,
-    latencyMs,
-    error: res.error || 'Failed to contact local AI backend'
+    latencyMs: Date.now() - startTime,
+    error: res.error || 'Failed to contact local AI backend or Ollama. Ensure Ollama is running on localhost:11434.'
   };
 });
 
 ipcMain.handle(IPC_CHANNELS.AI_PULL_MODEL, async (_, modelName: string) => {
+  // 1. Try Python engine
   const res = await makeHttpRequest<any>(
     {
       hostname: '127.0.0.1',
@@ -358,7 +423,21 @@ ipcMain.handle(IPC_CHANNELS.AI_PULL_MODEL, async (_, modelName: string) => {
     },
     { name: modelName }
   );
-  return res;
+  if (res.success) return res;
+
+  // 2. Direct Ollama fallback
+  const direct = await makeHttpRequest<any>(
+    {
+      hostname: '127.0.0.1',
+      port: 11434,
+      path: '/api/pull',
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      timeout: 10000
+    },
+    { name: modelName, stream: false }
+  );
+  return direct;
 });
 
 // Autonomous AI Agent IPC

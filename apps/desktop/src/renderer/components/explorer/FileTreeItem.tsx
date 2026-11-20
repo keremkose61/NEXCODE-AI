@@ -42,6 +42,12 @@ export const FileTreeItem: React.FC<FileTreeItemProps> = ({ node, level }) => {
             name: node.name,
             content: res.content
           });
+        } else {
+          useNotificationStore.getState().addNotification({
+            type: 'error',
+            title: 'File Read Error',
+            message: res.error || `Unable to read file: ${node.name}`
+          });
         }
       } else {
         openFile({
