@@ -1,0 +1,11 @@
+[package]
+name = "nexcode-rust-core"
+version = "0.1.0"
+edition = "2021"
+description = "High-performance native file indexer and AST parser for NEXCODE AI"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+# tree-sitter or native bindings will be added in phase 3

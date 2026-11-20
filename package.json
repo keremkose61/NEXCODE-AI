@@ -1,0 +1,21 @@
+{
+  "name": "nexcode-ai-monorepo",
+  "version": "0.1.0",
+  "private": true,
+  "description": "NEXCODE AI - Professional Windows Desktop IDE with Local AI Infrastructure",
+  "author": "NEXCODE AI Team",
+  "license": "UNLICENSED",
+  "scripts": {
+    "dev": "pnpm --filter @nexcode/desktop dev",
+    "build": "pnpm -r --stream build",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc -b --noEmit",
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,css,md}\""
+  },
+  "devDependencies": {
+    "prettier": "^3.3.3",
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.8"
+  }
+}
