@@ -10,6 +10,7 @@ import { aiServiceManager } from './ai-service';
 import { makeHttpRequest } from './ai-client';
 import { agentManager } from './agent-manager';
 import { terminalManager } from './terminal-manager';
+import { gitService } from './git-service';
 
 let mainWindow: BrowserWindow | null = null;
 let currentProjectPath: string | null = null;
@@ -384,6 +385,57 @@ ipcMain.handle(IPC_CHANNELS.TERMINAL_INPUT, (_, tabId: string, data: string) => 
 
 ipcMain.handle(IPC_CHANNELS.TERMINAL_CLOSE, (_, tabId: string) => {
   return terminalManager.close(tabId);
+});
+
+// Git IPC
+ipcMain.handle(IPC_CHANNELS.GIT_GET_STATUS, () => {
+  const ws = currentProjectPath || process.cwd();
+  return gitService.getStatus(ws);
+});
+
+ipcMain.handle(IPC_CHANNELS.GIT_STAGE_FILE, (_, filePath: string) => {
+  const ws = currentProjectPath || process.cwd();
+  return gitService.stageFile(ws, filePath);
+});
+
+ipcMain.handle(IPC_CHANNELS.GIT_STAGE_ALL, () => {
+  const ws = currentProjectPath || process.cwd();
+  return gitService.stageAll(ws);
+});
+
+ipcMain.handle(IPC_CHANNELS.GIT_UNSTAGE_FILE, (_, filePath: string) => {
+  const ws = currentProjectPath || process.cwd();
+  return gitService.unstageFile(ws, filePath);
+});
+
+ipcMain.handle(IPC_CHANNELS.GIT_COMMIT, (_, message: string) => {
+  const ws = currentProjectPath || process.cwd();
+  return gitService.commit(ws, message);
+});
+
+ipcMain.handle(IPC_CHANNELS.GIT_GET_BRANCHES, () => {
+  const ws = currentProjectPath || process.cwd();
+  return gitService.getBranches(ws);
+});
+
+ipcMain.handle(IPC_CHANNELS.GIT_CHECKOUT_BRANCH, (_, branch: string, createNew?: boolean) => {
+  const ws = currentProjectPath || process.cwd();
+  return gitService.checkoutBranch(ws, branch, createNew);
+});
+
+ipcMain.handle(IPC_CHANNELS.GIT_GET_DIFF, (_, filePath: string, staged?: boolean) => {
+  const ws = currentProjectPath || process.cwd();
+  return gitService.getDiff(ws, filePath, staged);
+});
+
+ipcMain.handle(IPC_CHANNELS.GIT_PULL, () => {
+  const ws = currentProjectPath || process.cwd();
+  return gitService.pull(ws);
+});
+
+ipcMain.handle(IPC_CHANNELS.GIT_PUSH, (_, userConfirmed: boolean) => {
+  const ws = currentProjectPath || process.cwd();
+  return gitService.push(ws, userConfirmed);
 });
 
 // Database & Persistent Storage IPC

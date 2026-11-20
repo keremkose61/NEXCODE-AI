@@ -44,6 +44,18 @@ export const IPC_CHANNELS = {
   AGENT_REVERT_ACTION: 'agent:revert-action',
   AGENT_GET_AUDIT_LOGS: 'agent:get-audit-logs',
 
+  // Git & Source Control
+  GIT_GET_STATUS: 'git:get-status',
+  GIT_STAGE_FILE: 'git:stage-file',
+  GIT_STAGE_ALL: 'git:stage-all',
+  GIT_UNSTAGE_FILE: 'git:unstage-file',
+  GIT_COMMIT: 'git:commit',
+  GIT_GET_BRANCHES: 'git:get-branches',
+  GIT_CHECKOUT_BRANCH: 'git:checkout-branch',
+  GIT_GET_DIFF: 'git:get-diff',
+  GIT_PULL: 'git:pull',
+  GIT_PUSH: 'git:push',
+
   // Database & State
   DB_GET_SETTINGS: 'db:get-settings',
   DB_SAVE_SETTINGS: 'db:save-settings',

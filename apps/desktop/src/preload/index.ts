@@ -7,7 +7,9 @@ import {
   AIChatSession,
   AIChatMessage,
   AgentTask,
-  AgentAuditLog
+  AgentAuditLog,
+  GitStatusResult,
+  GitBranchInfo
 } from '@nexcode/shared';
 
 const nexcodeAPI = {
@@ -70,6 +72,22 @@ const nexcodeAPI = {
     revertAction: (logId: string): Promise<{ success: boolean; error?: string }> =>
       ipcRenderer.invoke(IPC_CHANNELS.AGENT_REVERT_ACTION, logId),
     getAuditLogs: (): Promise<AgentAuditLog[]> => ipcRenderer.invoke(IPC_CHANNELS.AGENT_GET_AUDIT_LOGS)
+  },
+  git: {
+    getStatus: (): Promise<GitStatusResult> => ipcRenderer.invoke(IPC_CHANNELS.GIT_GET_STATUS),
+    stageFile: (filePath: string): Promise<boolean> => ipcRenderer.invoke(IPC_CHANNELS.GIT_STAGE_FILE, filePath),
+    stageAll: (): Promise<boolean> => ipcRenderer.invoke(IPC_CHANNELS.GIT_STAGE_ALL),
+    unstageFile: (filePath: string): Promise<boolean> => ipcRenderer.invoke(IPC_CHANNELS.GIT_UNSTAGE_FILE, filePath),
+    commit: (message: string): Promise<{ success: boolean; hash?: string; error?: string }> =>
+      ipcRenderer.invoke(IPC_CHANNELS.GIT_COMMIT, message),
+    getBranches: (): Promise<GitBranchInfo> => ipcRenderer.invoke(IPC_CHANNELS.GIT_GET_BRANCHES),
+    checkoutBranch: (branch: string, createNew?: boolean): Promise<{ success: boolean; error?: string }> =>
+      ipcRenderer.invoke(IPC_CHANNELS.GIT_CHECKOUT_BRANCH, branch, createNew),
+    getDiff: (filePath: string, staged?: boolean): Promise<{ original: string; modified: string }> =>
+      ipcRenderer.invoke(IPC_CHANNELS.GIT_GET_DIFF, filePath, staged),
+    pull: (): Promise<{ success: boolean; output: string }> => ipcRenderer.invoke(IPC_CHANNELS.GIT_PULL),
+    push: (userConfirmed: boolean): Promise<{ success: boolean; output: string; error?: string }> =>
+      ipcRenderer.invoke(IPC_CHANNELS.GIT_PUSH, userConfirmed)
   },
   db: {
     getRecentProjects: (): Promise<RecentProject[]> => ipcRenderer.invoke(IPC_CHANNELS.DB_GET_RECENT_PROJECTS),
