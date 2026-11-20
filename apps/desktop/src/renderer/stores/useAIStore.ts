@@ -251,7 +251,7 @@ You have access to 12 specialized modes:
       id: `msg-${Date.now()}`,
       sessionId: sessionId || undefined,
       role: 'user',
-      content: codeContext ? `${userText}\n\n\`\`\`\n${codeContext}\n\`\`\`` : userText,
+      content: userText,
       timestamp: Date.now(),
       mode: currentMode
     };
@@ -289,15 +289,24 @@ You have access to 12 specialized modes:
 
     try {
       if (api) {
+        const historyMessages = get()
+          .messages.filter((m) => m.id !== assistantMsgId)
+          .map((m) => ({
+            role: m.role,
+            content: m.content
+          }));
+
+        if (codeContext) {
+          historyMessages.push({
+            role: 'user',
+            content: `Active File Context:\n\`\`\`\n${codeContext}\n\`\`\`\n\nTask: ${userText}`
+          });
+        }
+
         const response = await api.ai.sendChat({
           model: selectedModel,
           mode: currentMode,
-          messages: [
-            ...get().messages.filter((m) => m.id !== assistantMsgId).map((m) => ({
-              role: m.role,
-              content: m.content
-            }))
-          ],
+          messages: historyMessages,
           context_files: contextFiles,
           temperature: 0.2
         });
@@ -354,24 +363,43 @@ You have access to 12 specialized modes:
       console.warn('Live chat query error, using offline guidance fallback:', err);
     }
 
-    const fallbackText = !isOllamaRunning
-      ? `⚠️ **Local AI Engine Offline**
+    const isGreeting = /^(merhaba|selam|selamlar|hey|hi|hello|günaydın|iyi günler|naber)/i.test(userText.trim());
 
-Ollama was not detected at \`http://localhost:11434\`.
+    let fallbackText = '';
+    if (!isOllamaRunning) {
+      if (isGreeting) {
+        fallbackText = `Merhaba! Ben **NEXCODE AI**. 🚀
+Kodlarınızın %100 yerel, gizli ve ücretsiz çalışabilmesi için arka planda yerel yapay zeka motoru (**Ollama**) kullanılmaktadır.
 
-**How to activate your local AI:**
-1. Download and install Ollama from [https://ollama.com](https://ollama.com).
-2. Open PowerShell and run:
-   \`\`\`bash
+Şu anda Ollama servisine (\`http://localhost:11434\`) ulaşılamadı.
+
+**Nasıl Aktif Edebilirsiniz?**
+1. [ollama.com](https://ollama.com) adresinden Windows için Ollama'yı kurup başlatın.
+2. PowerShell veya Komut İstemi'ni açıp şu komutu çalıştırın:
+   \`\`\`powershell
+   ollama run qwen2.5-coder:7b
+   \`\`\`
+3. Model indikten sonra buradan bana dilediğiniz soruyu sorabilir, kod yazdırabilir veya \`Ctrl + K\` ile anında satır içi kod üretebilirsiniz!
+
+*Tespit Edilen Donanım:* ${hardware.cpuModel} • ${hardware.ramGb} GB RAM`;
+      } else {
+        fallbackText = `⚠️ **Yerel AI Motoru Çevrimdışı (Ollama Offline)**
+
+Ollama \`http://localhost:11434\` adresinde tespit edilemedi.
+
+**Yerel Yapay Zekayı Başlatmak İçin:**
+1. [ollama.com](https://ollama.com) adresinden Windows uygulamasını kurun.
+2. PowerShell veya CMD'de çalıştırın:
+   \`\`\`powershell
    ollama run ${selectedModel}
    \`\`\`
-3. Once running, click **Sync Status** above to start instant, private local coding assistance!
+3. Model çalıştıktan sonra mesajınızı tekrar gönderebilirsiniz.
 
-*Current Hardware Profile:*
-- CPU: ${hardware.cpuModel} (${hardware.cpuCores} cores)
-- RAM: ${hardware.ramGb} GB
-- Accelerator: ${hardware.accelerationMode} (AMD/CPU Safe Mode)`
-      : `Model \`${selectedModel}\` is ready and listening in your local workspace.`;
+*Sistem Özellikleri:* ${hardware.cpuModel} • ${hardware.ramGb} GB RAM • Mod: ${hardware.accelerationMode}`;
+      }
+    } else {
+      fallbackText = `Model \`${selectedModel}\` yerel çalışma alanınızda hazır ve yanıt veriyor.`;
+    }
 
     const fallbackAssistantMsg: AIChatMessage = {
       id: assistantMsgId,

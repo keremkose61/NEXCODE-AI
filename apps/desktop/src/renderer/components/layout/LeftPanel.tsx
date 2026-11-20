@@ -199,7 +199,7 @@ export const LeftPanel: React.FC = () => {
 
           <div className="flex-1 overflow-y-auto py-1">
             {files.length > 0 ? (
-              files.map((node) => <FileTreeItem key={node.path} node={node} />)
+              files.map((node) => <FileTreeItem key={node.path} node={node} level={0} />)
             ) : (
               <div className="p-4 text-center text-slate-500">
                 <p>No project folder opened.</p>

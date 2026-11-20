@@ -15,6 +15,7 @@ import {
 import { FileNode } from '@nexcode/shared';
 import { useEditorStore } from '../../stores/useEditorStore';
 import { useProjectStore } from '../../stores/useProjectStore';
+import { useNotificationStore } from '../../stores/useNotificationStore';
 
 interface FileTreeItemProps {
   node: FileNode;

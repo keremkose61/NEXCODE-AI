@@ -5,6 +5,7 @@ dist-electron/
 out/
 build/
 *.blockmap
+*.tsbuildinfo
 .pnpm-store/
 *.log
 npm-debug.log*

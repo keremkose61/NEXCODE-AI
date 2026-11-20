@@ -65,7 +65,18 @@ export const RightPanel: React.FC = () => {
 
   const handleSend = (overrideMode?: AIAssistantMode) => {
     if (!input.trim() || isThinking) return;
-    sendMessage(input, activeTab?.content, overrideMode || activeMode);
+    const mode = overrideMode || activeMode;
+    const requiresCode = [
+      'explain',
+      'fix',
+      'optimize',
+      'convert',
+      'error_analysis',
+      'docgen',
+      'testgen',
+      'analyze_file'
+    ].includes(mode);
+    sendMessage(input, requiresCode ? activeTab?.content : undefined, mode);
     setInput('');
   };
 
