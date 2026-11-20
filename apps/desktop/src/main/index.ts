@@ -6,6 +6,7 @@ import http from 'http';
 import { IPC_CHANNELS, FileNode, IDESettings, DEFAULT_SETTINGS } from '@nexcode/shared';
 import { dbManager } from './db';
 import { fileWatcher } from './watcher';
+import { aiServiceManager } from './ai-service';
 
 let mainWindow: BrowserWindow | null = null;
 let currentProjectPath: string | null = null;
@@ -308,7 +309,15 @@ ipcMain.handle(IPC_CHANNELS.FS_WATCH_STOP, () => {
   fileWatcher.stopWatching();
 });
 
-app.whenReady().then(createWindow);
+app.whenReady().then(async () => {
+  aiServiceManager.startService();
+  await createWindow();
+});
+
+app.on('will-quit', () => {
+  aiServiceManager.stopService();
+  fileWatcher.stopWatching();
+});
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
