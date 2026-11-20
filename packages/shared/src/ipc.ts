@@ -37,6 +37,13 @@ export const IPC_CHANNELS = {
   AI_PULL_MODEL: 'ai:pull-model',
   AI_PULL_PROGRESS: 'ai:pull-progress',
 
+  // Autonomous Agent
+  AGENT_PLAN_TASK: 'agent:plan-task',
+  AGENT_PROPOSE_EDIT: 'agent:propose-edit',
+  AGENT_APPROVE_ACTION: 'agent:approve-action',
+  AGENT_REVERT_ACTION: 'agent:revert-action',
+  AGENT_GET_AUDIT_LOGS: 'agent:get-audit-logs',
+
   // Database & State
   DB_GET_SETTINGS: 'db:get-settings',
   DB_SAVE_SETTINGS: 'db:save-settings',

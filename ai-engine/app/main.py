@@ -5,6 +5,7 @@ from contextlib import asynccontextmanager
 from .api.routes_health import router as health_router
 from .api.routes_models import router as models_router
 from .api.routes_chat import router as chat_router
+from .api.routes_agent import router as agent_router
 from .config import ENGINE_HOST, ENGINE_PORT
 
 @asynccontextmanager
@@ -31,6 +32,7 @@ app.add_middleware(
 app.include_router(health_router, prefix="/api/v1")
 app.include_router(models_router, prefix="/api/v1")
 app.include_router(chat_router, prefix="/api/v1")
+app.include_router(agent_router, prefix="/api/v1")
 
 @app.get("/")
 async def root():

@@ -8,6 +8,7 @@ import { dbManager } from './db';
 import { fileWatcher } from './watcher';
 import { aiServiceManager } from './ai-service';
 import { makeHttpRequest } from './ai-client';
+import { agentManager } from './agent-manager';
 
 let mainWindow: BrowserWindow | null = null;
 let currentProjectPath: string | null = null;
@@ -348,6 +349,26 @@ ipcMain.handle(IPC_CHANNELS.AI_PULL_MODEL, async (_, modelName: string) => {
     { name: modelName }
   );
   return res;
+});
+
+// Autonomous AI Agent IPC
+ipcMain.handle(IPC_CHANNELS.AGENT_PLAN_TASK, async (_, goal: string) => {
+  const ws = currentProjectPath || process.cwd();
+  return agentManager.planTask(goal, ws);
+});
+
+ipcMain.handle(IPC_CHANNELS.AGENT_APPROVE_ACTION, async (_, action: any) => {
+  const ws = currentProjectPath || process.cwd();
+  return agentManager.approveAction(ws, action);
+});
+
+ipcMain.handle(IPC_CHANNELS.AGENT_REVERT_ACTION, async (_, logId: string) => {
+  const ws = currentProjectPath || process.cwd();
+  return agentManager.revertAction(ws, logId);
+});
+
+ipcMain.handle(IPC_CHANNELS.AGENT_GET_AUDIT_LOGS, () => {
+  return agentManager.getAuditLogs();
 });
 
 // Database & Persistent Storage IPC

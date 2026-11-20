@@ -82,3 +82,17 @@ export interface AgentTask {
   status: 'planning' | 'running' | 'paused' | 'completed' | 'cancelled';
   createdAt: number;
 }
+
+export interface AgentAuditLog {
+  id: string;
+  taskId: string;
+  actionType: 'modify_file' | 'create_file' | 'delete_file' | 'execute_command';
+  targetPath?: string;
+  command?: string;
+  diff?: string;
+  originalContent?: string;
+  newContent?: string;
+  approvedByUser: boolean;
+  reverted?: boolean;
+  timestamp: number;
+}

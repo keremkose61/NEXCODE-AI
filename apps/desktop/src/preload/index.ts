@@ -5,7 +5,9 @@ import {
   RecentProject,
   IDESettings,
   AIChatSession,
-  AIChatMessage
+  AIChatMessage,
+  AgentTask,
+  AgentAuditLog
 } from '@nexcode/shared';
 
 const nexcodeAPI = {
@@ -47,6 +49,14 @@ const nexcodeAPI = {
     listModels: () => ipcRenderer.invoke(IPC_CHANNELS.AI_LIST_MODELS),
     sendChat: (payload: any) => ipcRenderer.invoke(IPC_CHANNELS.AI_SEND_CHAT, payload),
     pullModel: (modelName: string) => ipcRenderer.invoke(IPC_CHANNELS.AI_PULL_MODEL, modelName)
+  },
+  agent: {
+    planTask: (goal: string): Promise<AgentTask> => ipcRenderer.invoke(IPC_CHANNELS.AGENT_PLAN_TASK, goal),
+    approveAction: (action: any): Promise<{ success: boolean; log?: AgentAuditLog; error?: string }> =>
+      ipcRenderer.invoke(IPC_CHANNELS.AGENT_APPROVE_ACTION, action),
+    revertAction: (logId: string): Promise<{ success: boolean; error?: string }> =>
+      ipcRenderer.invoke(IPC_CHANNELS.AGENT_REVERT_ACTION, logId),
+    getAuditLogs: (): Promise<AgentAuditLog[]> => ipcRenderer.invoke(IPC_CHANNELS.AGENT_GET_AUDIT_LOGS)
   },
   db: {
     getRecentProjects: (): Promise<RecentProject[]> => ipcRenderer.invoke(IPC_CHANNELS.DB_GET_RECENT_PROJECTS),
