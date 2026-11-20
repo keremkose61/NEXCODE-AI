@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron';
-import { IPC_CHANNELS, FileNode } from '@nexcode/shared';
+import { IPC_CHANNELS, FileNode, RecentProject, IDESettings } from '@nexcode/shared';
 
 const nexcodeAPI = {
   window: {
@@ -26,10 +26,25 @@ const nexcodeAPI = {
     deleteItem: (itemPath: string): Promise<{ success: boolean; error?: string }> =>
       ipcRenderer.invoke(IPC_CHANNELS.FS_DELETE_ITEM, itemPath),
     renameItem: (oldPath: string, newPath: string): Promise<{ success: boolean; error?: string }> =>
-      ipcRenderer.invoke(IPC_CHANNELS.FS_RENAME_ITEM, oldPath, newPath)
+      ipcRenderer.invoke(IPC_CHANNELS.FS_RENAME_ITEM, oldPath, newPath),
+    watchStart: (dirPath: string): Promise<void> => ipcRenderer.invoke(IPC_CHANNELS.FS_WATCH_START, dirPath),
+    watchStop: (): Promise<void> => ipcRenderer.invoke(IPC_CHANNELS.FS_WATCH_STOP),
+    onFileChanged: (callback: (payload: { eventType: string; filename: string; rootPath: string }) => void) => {
+      const subscription = (_: any, data: any) => callback(data);
+      ipcRenderer.on(IPC_CHANNELS.FS_FILE_CHANGED, subscription);
+      return () => ipcRenderer.removeListener(IPC_CHANNELS.FS_FILE_CHANGED, subscription);
+    }
   },
   ai: {
     checkStatus: () => ipcRenderer.invoke(IPC_CHANNELS.AI_CHECK_STATUS)
+  },
+  db: {
+    getRecentProjects: (): Promise<RecentProject[]> => ipcRenderer.invoke(IPC_CHANNELS.DB_GET_RECENT_PROJECTS),
+    addRecentProject: (name: string, projectPath: string): Promise<RecentProject> =>
+      ipcRenderer.invoke(IPC_CHANNELS.DB_ADD_RECENT_PROJECT, name, projectPath),
+    getSettings: (): Promise<IDESettings> => ipcRenderer.invoke(IPC_CHANNELS.DB_GET_SETTINGS),
+    saveSettings: (settings: Partial<IDESettings>): Promise<IDESettings> =>
+      ipcRenderer.invoke(IPC_CHANNELS.DB_SAVE_SETTINGS, settings)
   }
 };
 

@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { TopBar } from './components/layout/TopBar';
 import { ActivityBar } from './components/layout/ActivityBar';
 import { LeftPanel } from './components/layout/LeftPanel';
@@ -11,9 +11,13 @@ import { CommandPalette } from './components/ui/CommandPalette';
 import { QuickOpen } from './components/ui/QuickOpen';
 import { SettingsModal } from './components/ui/SettingsModal';
 import { ToastContainer } from './components/ui/ToastContainer';
+import { ConfirmDeleteModal } from './components/ui/ConfirmDeleteModal';
+import { RenameModal } from './components/ui/RenameModal';
+import { RecentProjectsModal } from './components/ui/RecentProjectsModal';
 import { useAIStore } from './stores/useAIStore';
 import { useUIStore } from './stores/useUIStore';
 import { useEditorStore } from './stores/useEditorStore';
+import { useProjectStore } from './stores/useProjectStore';
 import { useSettingsStore } from './stores/useSettingsStore';
 import { useNotificationStore } from './stores/useNotificationStore';
 
@@ -36,12 +40,19 @@ export const App: React.FC = () => {
     openQuickOpen
   } = useUIStore();
   const { saveCurrentFile } = useEditorStore();
+  const { initFileWatcher, loadRecentProjects } = useProjectStore();
   const { openSettingsModal } = useSettingsStore();
   const { addNotification } = useNotificationStore();
+
+  const [isRecentModalOpen, setIsRecentModalOpen] = useState(false);
 
   useEffect(() => {
     // Initial hardware & local AI engine status check
     checkLocalAIStatus();
+    loadRecentProjects();
+
+    // Start listening for disk file system changes via watcher
+    const cleanupWatcher = initFileWatcher();
 
     // Global IDE keyboard shortcuts
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -95,13 +106,25 @@ export const App: React.FC = () => {
         toggleRightSidebar();
         return;
       }
+
+      // Ctrl+R: Recent projects
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'r') {
+        e.preventDefault();
+        setIsRecentModalOpen(true);
+        return;
+      }
     };
 
     window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      cleanupWatcher();
+    };
   }, [
     checkLocalAIStatus,
     saveCurrentFile,
+    initFileWatcher,
+    loadRecentProjects,
     toggleLeftSidebar,
     toggleBottomPanel,
     toggleRightSidebar,
@@ -163,11 +186,17 @@ export const App: React.FC = () => {
       {/* Bottom Status Bar */}
       <StatusBar />
 
-      {/* Interactive Overlays & Modals */}
+      {/* Interactive Overlays & Safety Modals */}
       <CommandPalette />
       <QuickOpen />
       <SettingsModal />
       <ToastContainer />
+      <ConfirmDeleteModal />
+      <RenameModal />
+      <RecentProjectsModal
+        isOpen={isRecentModalOpen}
+        onClose={() => setIsRecentModalOpen(false)}
+      />
     </div>
   );
 };

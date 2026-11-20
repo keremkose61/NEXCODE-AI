@@ -65,6 +65,16 @@ export const CommandPalette: React.FC = () => {
       action: () => openFolderDialog()
     },
     {
+      id: 'file-recent-projects',
+      title: 'File: Open Recent Projects...',
+      category: 'File',
+      icon: <FolderOpen className="w-4 h-4 text-indigo-400" />,
+      shortcut: 'Ctrl+R',
+      action: () => {
+        window.dispatchEvent(new KeyboardEvent('keydown', { key: 'r', ctrlKey: true }));
+      }
+    },
+    {
       id: 'file-save',
       title: 'File: Save Current File',
       category: 'File',

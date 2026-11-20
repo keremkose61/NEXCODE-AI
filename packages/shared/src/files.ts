@@ -25,3 +25,11 @@ export interface ProjectState {
   activeFileId: string | null;
   openTabs: OpenTab[];
 }
+
+export interface RecentProject {
+  id: string;
+  name: string;
+  path: string;
+  lastOpenedAt: number;
+  isFavorite?: boolean;
+}

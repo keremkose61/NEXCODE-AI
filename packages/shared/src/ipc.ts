@@ -18,6 +18,9 @@ export const IPC_CHANNELS = {
   FS_CREATE_DIR: 'fs:create-dir',
   FS_DELETE_ITEM: 'fs:delete-item',
   FS_RENAME_ITEM: 'fs:rename-item',
+  FS_WATCH_START: 'fs:watch-start',
+  FS_WATCH_STOP: 'fs:watch-stop',
+  FS_FILE_CHANGED: 'fs:file-changed',
 
   // Terminal
   TERMINAL_SPAWN: 'terminal:spawn',

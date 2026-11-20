@@ -4,6 +4,8 @@ import fs from 'fs/promises';
 import os from 'os';
 import http from 'http';
 import { IPC_CHANNELS, FileNode, IDESettings, DEFAULT_SETTINGS } from '@nexcode/shared';
+import { dbManager } from './db';
+import { fileWatcher } from './watcher';
 
 let mainWindow: BrowserWindow | null = null;
 let currentProjectPath: string | null = null;
@@ -111,6 +113,9 @@ ipcMain.handle(IPC_CHANNELS.FS_OPEN_FOLDER_DIALOG, async () => {
 
   const selectedPath = result.filePaths[0];
   currentProjectPath = selectedPath;
+  const name = path.basename(selectedPath);
+  dbManager.addRecentProject(name, selectedPath);
+  fileWatcher.startWatching(selectedPath, mainWindow);
   return selectedPath;
 });
 
@@ -276,6 +281,31 @@ ipcMain.handle(IPC_CHANNELS.AI_CHECK_STATUS, async () => {
       });
     });
   });
+});
+
+// Database & Persistent Storage IPC
+ipcMain.handle(IPC_CHANNELS.DB_GET_RECENT_PROJECTS, () => {
+  return dbManager.getRecentProjects();
+});
+
+ipcMain.handle(IPC_CHANNELS.DB_ADD_RECENT_PROJECT, (_, name: string, projPath: string) => {
+  return dbManager.addRecentProject(name, projPath);
+});
+
+ipcMain.handle(IPC_CHANNELS.DB_GET_SETTINGS, () => {
+  return dbManager.getSettings();
+});
+
+ipcMain.handle(IPC_CHANNELS.DB_SAVE_SETTINGS, (_, settings: Partial<IDESettings>) => {
+  return dbManager.saveSettings(settings);
+});
+
+ipcMain.handle(IPC_CHANNELS.FS_WATCH_START, (_, dirPath: string) => {
+  fileWatcher.startWatching(dirPath, mainWindow);
+});
+
+ipcMain.handle(IPC_CHANNELS.FS_WATCH_STOP, () => {
+  fileWatcher.stopWatching();
 });
 
 app.whenReady().then(createWindow);
