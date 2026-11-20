@@ -33,6 +33,8 @@ interface UIState {
   isQuickOpenOpen: boolean;
   isInlineAIOpen: boolean;
   inlineAIContext: InlineAIContext | null;
+  isModelManagerOpen: boolean;
+  isPRReviewOpen: boolean;
 
   // Actions
   toggleLeftSidebar: () => void;
@@ -53,6 +55,11 @@ interface UIState {
 
   openInlineAI: (context?: InlineAIContext) => void;
   closeInlineAI: () => void;
+
+  openModelManager: () => void;
+  closeModelManager: () => void;
+  openPRReview: () => void;
+  closePRReview: () => void;
 }
 
 export const useUIStore = create<UIState>((set) => ({
@@ -71,6 +78,8 @@ export const useUIStore = create<UIState>((set) => ({
   isQuickOpenOpen: false,
   isInlineAIOpen: false,
   inlineAIContext: null,
+  isModelManagerOpen: false,
+  isPRReviewOpen: false,
 
   toggleLeftSidebar: () => set((state) => ({ leftSidebarOpen: !state.leftSidebarOpen })),
   setLeftTab: (tab) =>
@@ -104,5 +113,11 @@ export const useUIStore = create<UIState>((set) => ({
   closeQuickOpen: () => set({ isQuickOpenOpen: false }),
 
   openInlineAI: (context) => set({ isInlineAIOpen: true, inlineAIContext: context || null }),
-  closeInlineAI: () => set({ isInlineAIOpen: false, inlineAIContext: null })
+  closeInlineAI: () => set({ isInlineAIOpen: false, inlineAIContext: null }),
+
+  openModelManager: () => set({ isModelManagerOpen: true }),
+  closeModelManager: () => set({ isModelManagerOpen: false }),
+
+  openPRReview: () => set({ isPRReviewOpen: true }),
+  closePRReview: () => set({ isPRReviewOpen: false })
 }));

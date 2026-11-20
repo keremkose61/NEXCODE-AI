@@ -9,7 +9,10 @@ import {
   Settings,
   Trash2,
   HelpCircle,
-  Cpu
+  Cpu,
+  HardDrive,
+  GitPullRequest,
+  Database
 } from 'lucide-react';
 import { useUIStore } from '../../stores/useUIStore';
 import { useProjectStore } from '../../stores/useProjectStore';
@@ -28,8 +31,16 @@ interface CommandItem {
 }
 
 export const CommandPalette: React.FC = () => {
-  const { isCommandPaletteOpen, closeCommandPalette, toggleLeftSidebar, toggleBottomPanel, toggleRightSidebar, setRightTab } =
-    useUIStore();
+  const {
+    isCommandPaletteOpen,
+    closeCommandPalette,
+    toggleLeftSidebar,
+    toggleBottomPanel,
+    toggleRightSidebar,
+    setRightTab,
+    openModelManager,
+    openPRReview
+  } = useUIStore();
   const { openFolderDialog } = useProjectStore();
   const { saveCurrentFile, openFile, openTabs } = useEditorStore();
   const { checkLocalAIStatus, clearHistory } = useAIStore();
@@ -128,6 +139,37 @@ export const CommandPalette: React.FC = () => {
         clearHistory();
         addNotification({ type: 'info', message: 'AI chat history cleared.' });
       }
+    },
+    {
+      id: 'ai-manage-models',
+      title: 'AI: Manage Local Models (Download & Delete Hub)',
+      category: 'AI Engine',
+      icon: <HardDrive className="w-4 h-4 text-indigo-400" />,
+      action: () => openModelManager()
+    },
+    {
+      id: 'ai-rag-index',
+      title: 'AI: Index Workspace Codebase (Local Semantic Search)',
+      category: 'AI Engine',
+      icon: <Database className="w-4 h-4 text-emerald-400" />,
+      action: async () => {
+        if (window.nexcode) {
+          addNotification({ type: 'info', message: 'Indexing project codebase...' });
+          const res = await window.nexcode.rag.indexProject();
+          addNotification({
+            type: 'success',
+            title: 'Codebase Indexed',
+            message: `Indexed ${res.filesCount} files and ${res.chunksCount} code chunks.`
+          });
+        }
+      }
+    },
+    {
+      id: 'git-pr-review',
+      title: 'Git: Local AI Pull Request & Code Review',
+      category: 'Git',
+      icon: <GitPullRequest className="w-4 h-4 text-indigo-400" />,
+      action: () => openPRReview()
     },
     {
       id: 'preferences-settings',

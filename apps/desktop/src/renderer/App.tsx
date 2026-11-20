@@ -16,6 +16,8 @@ import { RenameModal } from './components/ui/RenameModal';
 import { RecentProjectsModal } from './components/ui/RecentProjectsModal';
 import { InlineAIBar } from './components/ui/InlineAIBar';
 import { DiffViewerModal } from './components/ui/DiffViewerModal';
+import { ModelManagerModal } from './components/ui/ModelManagerModal';
+import { PRReviewModal } from './components/ui/PRReviewModal';
 import { useAIStore } from './stores/useAIStore';
 import { useUIStore } from './stores/useUIStore';
 import { useEditorStore } from './stores/useEditorStore';
@@ -199,6 +201,8 @@ export const App: React.FC = () => {
       {/* Interactive Overlays & Safety Modals */}
       <InlineAIBar />
       <DiffViewerModal />
+      <ModelManagerModal />
+      <PRReviewModal />
       <CommandPalette />
       <QuickOpen />
       <SettingsModal />

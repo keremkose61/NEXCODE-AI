@@ -11,6 +11,10 @@ import { makeHttpRequest } from './ai-client';
 import { agentManager } from './agent-manager';
 import { terminalManager } from './terminal-manager';
 import { gitService } from './git-service';
+import { modelManager } from './model-manager';
+import { ragManager } from './rag-manager';
+import { terminalDiagnostics } from './terminal-diagnostics';
+import { prManager } from './pr-manager';
 
 let mainWindow: BrowserWindow | null = null;
 let currentProjectPath: string | null = null;
@@ -411,33 +415,41 @@ ipcMain.handle(IPC_CHANNELS.AI_SEND_CHAT, async (_, payload: any) => {
 });
 
 ipcMain.handle(IPC_CHANNELS.AI_PULL_MODEL, async (_, modelName: string) => {
-  // 1. Try Python engine
-  const res = await makeHttpRequest<any>(
-    {
-      hostname: '127.0.0.1',
-      port: 8765,
-      path: '/api/v1/models/pull',
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      timeout: 5000
-    },
-    { name: modelName }
-  );
-  if (res.success) return res;
+  return modelManager.pullModelStream(modelName, mainWindow);
+});
 
-  // 2. Direct Ollama fallback
-  const direct = await makeHttpRequest<any>(
-    {
-      hostname: '127.0.0.1',
-      port: 11434,
-      path: '/api/pull',
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      timeout: 10000
-    },
-    { name: modelName, stream: false }
-  );
-  return direct;
+ipcMain.handle(IPC_CHANNELS.AI_DELETE_MODEL, async (_, modelName: string) => {
+  return modelManager.deleteModel(modelName);
+});
+
+ipcMain.handle('ai:get-catalog', () => {
+  return modelManager.getCatalog();
+});
+
+// Local Project RAG & Codebase Knowledge
+ipcMain.handle(IPC_CHANNELS.RAG_INDEX_PROJECT, async () => {
+  const ws = currentProjectPath || process.cwd();
+  return ragManager.indexWorkspace(ws);
+});
+
+ipcMain.handle(IPC_CHANNELS.RAG_QUERY_PROJECT, async (_, queryText: string, limit?: number) => {
+  return ragManager.query(queryText, limit || 5);
+});
+
+ipcMain.handle(IPC_CHANNELS.RAG_GET_STATS, () => {
+  return ragManager.getStats();
+});
+
+// Terminal Auto-Healer IPC
+ipcMain.handle(IPC_CHANNELS.TERMINAL_DIAGNOSE_ERROR, async (_, tabId: string, command: string, output: string) => {
+  const ws = currentProjectPath || process.cwd();
+  return terminalDiagnostics.createDiagnostic(tabId, command, output, ws);
+});
+
+// Pull Request & AI Code Review IPC
+ipcMain.handle('git:generate-pr-review', async (_, baseBranch?: string) => {
+  const ws = currentProjectPath || process.cwd();
+  return prManager.generateReview(ws, baseBranch || 'master');
 });
 
 // Autonomous AI Agent IPC

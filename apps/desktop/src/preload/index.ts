@@ -57,13 +57,27 @@ const nexcodeAPI = {
       const sub = (_: any, data: any) => callback(data);
       ipcRenderer.on(IPC_CHANNELS.TERMINAL_OUTPUT, sub);
       return () => ipcRenderer.removeListener(IPC_CHANNELS.TERMINAL_OUTPUT, sub);
-    }
+    },
+    diagnoseError: (tabId: string, command: string, output: string) =>
+      ipcRenderer.invoke(IPC_CHANNELS.TERMINAL_DIAGNOSE_ERROR, tabId, command, output)
   },
   ai: {
     checkStatus: () => ipcRenderer.invoke(IPC_CHANNELS.AI_CHECK_STATUS),
     listModels: () => ipcRenderer.invoke(IPC_CHANNELS.AI_LIST_MODELS),
     sendChat: (payload: any) => ipcRenderer.invoke(IPC_CHANNELS.AI_SEND_CHAT, payload),
-    pullModel: (modelName: string) => ipcRenderer.invoke(IPC_CHANNELS.AI_PULL_MODEL, modelName)
+    pullModel: (modelName: string) => ipcRenderer.invoke(IPC_CHANNELS.AI_PULL_MODEL, modelName),
+    deleteModel: (modelName: string) => ipcRenderer.invoke(IPC_CHANNELS.AI_DELETE_MODEL, modelName),
+    getCatalog: () => ipcRenderer.invoke('ai:get-catalog'),
+    onPullProgress: (callback: (progress: any) => void) => {
+      const sub = (_: any, data: any) => callback(data);
+      ipcRenderer.on('ai:pull-progress', sub);
+      return () => ipcRenderer.removeListener('ai:pull-progress', sub);
+    }
+  },
+  rag: {
+    indexProject: () => ipcRenderer.invoke(IPC_CHANNELS.RAG_INDEX_PROJECT),
+    queryProject: (query: string, limit?: number) => ipcRenderer.invoke(IPC_CHANNELS.RAG_QUERY_PROJECT, query, limit),
+    getStats: () => ipcRenderer.invoke(IPC_CHANNELS.RAG_GET_STATS)
   },
   agent: {
     planTask: (goal: string): Promise<AgentTask> => ipcRenderer.invoke(IPC_CHANNELS.AGENT_PLAN_TASK, goal),
@@ -87,7 +101,8 @@ const nexcodeAPI = {
       ipcRenderer.invoke(IPC_CHANNELS.GIT_GET_DIFF, filePath, staged),
     pull: (): Promise<{ success: boolean; output: string }> => ipcRenderer.invoke(IPC_CHANNELS.GIT_PULL),
     push: (userConfirmed: boolean): Promise<{ success: boolean; output: string; error?: string }> =>
-      ipcRenderer.invoke(IPC_CHANNELS.GIT_PUSH, userConfirmed)
+      ipcRenderer.invoke(IPC_CHANNELS.GIT_PUSH, userConfirmed),
+    generatePRReview: (baseBranch?: string) => ipcRenderer.invoke('git:generate-pr-review', baseBranch)
   },
   db: {
     getRecentProjects: (): Promise<RecentProject[]> => ipcRenderer.invoke(IPC_CHANNELS.DB_GET_RECENT_PROJECTS),

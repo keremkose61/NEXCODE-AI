@@ -14,7 +14,12 @@ import {
   Download,
   Plus,
   ArrowDownToLine,
-  ChevronDown
+  ChevronDown,
+  HardDrive,
+  Mic,
+  MicOff,
+  Image as ImageIcon,
+  Database
 } from 'lucide-react';
 import { useUIStore } from '../../stores/useUIStore';
 import { useAIStore, ASSISTANT_MODES } from '../../stores/useAIStore';
@@ -24,7 +29,7 @@ import { AgentPanel } from '../ai/AgentPanel';
 import { AIAssistantMode } from '@nexcode/shared';
 
 export const RightPanel: React.FC = () => {
-  const { rightSidebarOpen, activeRightTab, setRightTab, rightPanelWidth } = useUIStore();
+  const { rightSidebarOpen, activeRightTab, setRightTab, rightPanelWidth, openModelManager } = useUIStore();
   const {
     messages,
     sendMessage,
@@ -51,7 +56,12 @@ export const RightPanel: React.FC = () => {
   const [input, setInput] = useState('');
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [showSessionsDropdown, setShowSessionsDropdown] = useState(false);
+  const [attachedImage, setAttachedImage] = useState<string | null>(null);
+  const [isListening, setIsListening] = useState(false);
+  const [ragStats, setRagStats] = useState<{ filesCount: number; chunksCount: number } | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const recognitionRef = useRef<any>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const activeTab = openTabs.find((t) => t.id === activeTabId);
   const activeModelMeta = availableModels.find((m) => m.name === selectedModel);
@@ -63,8 +73,77 @@ export const RightPanel: React.FC = () => {
 
   if (!rightSidebarOpen) return null;
 
-  const handleSend = (overrideMode?: AIAssistantMode) => {
-    if (!input.trim() || isThinking) return;
+  const toggleVoiceRecognition = () => {
+    const SpeechRecognition =
+      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      addNotification({
+        type: 'warning',
+        message: 'Speech recognition is not available on this system.'
+      });
+      return;
+    }
+
+    if (isListening) {
+      recognitionRef.current?.stop();
+      setIsListening(false);
+      return;
+    }
+
+    try {
+      const recognition = new SpeechRecognition();
+      recognition.lang = 'tr-TR';
+      recognition.continuous = false;
+      recognition.interimResults = false;
+
+      recognition.onstart = () => {
+        setIsListening(true);
+        addNotification({ type: 'info', message: 'Listening for speech input...' });
+      };
+
+      recognition.onresult = (event: any) => {
+        const transcript = event.results[0][0].transcript;
+        if (transcript) {
+          setInput((prev) => (prev ? `${prev} ${transcript}` : transcript));
+        }
+      };
+
+      recognition.onerror = () => setIsListening(false);
+      recognition.onend = () => setIsListening(false);
+
+      recognitionRef.current = recognition;
+      recognition.start();
+    } catch {
+      setIsListening(false);
+    }
+  };
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const base64 = event.target?.result as string;
+      setAttachedImage(base64);
+      addNotification({ type: 'info', message: 'UI screenshot attached. Ask AI to generate code!' });
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleIndexCodebase = async () => {
+    if (!window.nexcode) return;
+    addNotification({ type: 'info', message: 'Scanning and indexing workspace codebase...' });
+    const res = await window.nexcode.rag.indexProject();
+    setRagStats(res);
+    addNotification({
+      type: 'success',
+      title: 'Codebase Indexed',
+      message: `Indexed ${res.filesCount} files into ${res.chunksCount} semantic chunks!`
+    });
+  };
+
+  const handleSend = async (overrideMode?: AIAssistantMode) => {
+    if ((!input.trim() && !attachedImage) || isThinking) return;
     const mode = overrideMode || activeMode;
     const requiresCode = [
       'explain',
@@ -76,8 +155,31 @@ export const RightPanel: React.FC = () => {
       'testgen',
       'analyze_file'
     ].includes(mode);
-    sendMessage(input, requiresCode ? activeTab?.content : undefined, mode);
+
+    let promptText = input.trim();
+    if (attachedImage) {
+      promptText = promptText
+        ? `[UI Mockup/Screenshot Attached]\nTask: ${promptText}\nConvert this visual interface into clean, responsive Tailwind CSS and React component code.`
+        : `[UI Mockup/Screenshot Attached]\nConvert this visual interface design into clean, responsive Tailwind CSS and React component code.`;
+    }
+
+    let ragContext: string | undefined = undefined;
+    if (mode === 'project_context' && window.nexcode) {
+      const chunks = await window.nexcode.rag.queryProject(promptText, 3);
+      if (chunks && chunks.length > 0) {
+        ragContext = chunks
+          .map((c: any) => `// File: ${c.filePath} (lines ${c.lineStart}-${c.lineEnd})\n${c.content}`)
+          .join('\n\n');
+      }
+    }
+
+    sendMessage(
+      promptText,
+      ragContext || (requiresCode ? activeTab?.content : undefined),
+      mode
+    );
     setInput('');
+    setAttachedImage(null);
   };
 
   const handleCopy = (id: string, text: string) => {
@@ -203,6 +305,14 @@ export const RightPanel: React.FC = () => {
         </div>
 
         <div className="flex items-center space-x-1">
+          <button
+            onClick={openModelManager}
+            title="Open Local Model Hub (Download & Manage Weights)"
+            className="flex items-center space-x-1 px-1.5 py-0.5 rounded bg-indigo-600/20 text-indigo-300 hover:bg-indigo-600/40 border border-indigo-500/30 transition-colors"
+          >
+            <HardDrive className="w-2.5 h-2.5" />
+            <span>Hub</span>
+          </button>
           {activeModelMeta && !activeModelMeta.isAvailableLocally && (
             <button
               onClick={handlePullModel}
@@ -385,6 +495,30 @@ export const RightPanel: React.FC = () => {
 
           {/* Chat Input Area */}
           <div className="p-3 border-t border-nexcode-800 bg-nexcode-950">
+            {attachedImage && (
+              <div className="mb-2 p-1.5 bg-nexcode-900 border border-indigo-500/40 rounded-lg flex items-center justify-between text-xs">
+                <div className="flex items-center space-x-2">
+                  <img src={attachedImage} alt="Attachment" className="w-8 h-8 rounded object-cover border border-indigo-500/30" />
+                  <span className="text-[11px] text-indigo-300">UI Mockup Attached (Multimodal)</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setAttachedImage(null)}
+                  className="p-1 hover:text-rose-400 text-slate-400 transition-colors"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )}
+
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleImageUpload}
+            />
+
             <div className="relative rounded-lg border border-nexcode-750 bg-nexcode-900 focus-within:border-indigo-500 transition-colors">
               <textarea
                 value={input}
@@ -398,11 +532,30 @@ export const RightPanel: React.FC = () => {
               <div className="px-2 py-1 border-t border-nexcode-800/50 flex items-center justify-between text-[10px]">
                 <div className="flex items-center space-x-1 text-slate-500">
                   <Shield className="w-3 h-3 text-emerald-400" />
-                  <span>100% Local • Zero Cloud Telemetry</span>
+                  <span>100% Local</span>
+                  <span className="text-slate-600">•</span>
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    title="Attach UI screenshot / design mockup"
+                    className="p-1 hover:text-indigo-400 text-slate-400 rounded transition-colors"
+                  >
+                    <ImageIcon className="w-3 h-3" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={toggleVoiceRecognition}
+                    title={isListening ? 'Stop Listening' : 'Dictate Prompt (Voice)'}
+                    className={`p-1 rounded transition-colors ${
+                      isListening ? 'text-rose-400 animate-pulse bg-rose-500/20' : 'hover:text-indigo-400 text-slate-400'
+                    }`}
+                  >
+                    {isListening ? <MicOff className="w-3 h-3" /> : <Mic className="w-3 h-3" />}
+                  </button>
                 </div>
                 <button
                   onClick={() => handleSend()}
-                  disabled={!input.trim() || isThinking}
+                  disabled={(!input.trim() && !attachedImage) || isThinking}
                   className="p-1.5 rounded-md bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 text-white transition-colors"
                 >
                   <Send className="w-3 h-3" />
@@ -437,6 +590,35 @@ export const RightPanel: React.FC = () => {
               <span className="text-slate-400">Memory Engine:</span>
               <span className="font-mono text-emerald-400">SQLite Store + Vector Index</span>
             </div>
+          </div>
+
+          {/* Local Codebase RAG Card */}
+          <div className="p-3 rounded-lg bg-nexcode-950 border border-nexcode-800 space-y-2.5">
+            <div className="flex items-center justify-between">
+              <span className="font-semibold text-slate-200 text-xs flex items-center gap-1.5">
+                <Database className="w-3.5 h-3.5 text-indigo-400" />
+                <span>Codebase Semantic RAG</span>
+              </span>
+              <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                100% Offline
+              </span>
+            </div>
+            <p className="text-[11px] text-slate-400">
+              Indexes multi-file codebase into semantic chunks for context-aware queries.
+            </p>
+            {ragStats && (
+              <div className="p-2 rounded bg-nexcode-900 border border-nexcode-800 text-[11px] text-indigo-300 font-mono">
+                Indexed: {ragStats.filesCount} files • {ragStats.chunksCount} chunks
+              </div>
+            )}
+            <button
+              type="button"
+              onClick={handleIndexCodebase}
+              className="w-full py-1.5 rounded bg-indigo-600/30 hover:bg-indigo-600/50 text-indigo-300 border border-indigo-500/40 font-medium text-xs transition-colors flex items-center justify-center space-x-1.5"
+            >
+              <RefreshCw className="w-3 h-3" />
+              <span>{ragStats ? 'Re-index Codebase' : 'Index Workspace Now'}</span>
+            </button>
           </div>
         </div>
       )}

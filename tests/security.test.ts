@@ -5,7 +5,7 @@ describe('Security & Hardening Guardrails (PHASE 10)', () => {
   it('enforces strict IPC channel namespacing', () => {
     const channels = Object.values(IPC_CHANNELS);
     // Every channel must be prefixed with a known domain
-    const validDomains = ['window', 'app', 'fs', 'terminal', 'ai', 'agent', 'git', 'db'];
+    const validDomains = ['window', 'app', 'fs', 'terminal', 'ai', 'agent', 'git', 'db', 'rag'];
     channels.forEach((ch) => {
       const domain = ch.split(':')[0];
       expect(validDomains).toContain(domain);

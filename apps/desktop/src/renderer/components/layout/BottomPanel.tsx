@@ -18,13 +18,15 @@ import {
   Square,
   ChevronRight,
   CircleDot,
-  Send
+  Send,
+  Sparkles
 } from 'lucide-react';
 import { useUIStore } from '../../stores/useUIStore';
 import { useProjectStore } from '../../stores/useProjectStore';
 import { useTerminalStore } from '../../stores/useTerminalStore';
 import { useDebuggerStore } from '../../stores/useDebuggerStore';
 import { useEditorStore } from '../../stores/useEditorStore';
+import { useAIStore } from '../../stores/useAIStore';
 
 export const BottomPanel: React.FC = () => {
   const { bottomPanelOpen, activeBottomTab, setBottomTab, toggleBottomPanel, bottomPanelHeight } =
@@ -71,6 +73,24 @@ export const BottomPanel: React.FC = () => {
 
   const activeTerm = tabs.find((t) => t.id === activeTermId) || tabs[0];
   const activeTab = openTabs.find((t) => t.id === activeTabId);
+
+  const detectedError = React.useMemo(() => {
+    if (!activeTerm?.output || activeTerm.output.length === 0) return null;
+    const recent = activeTerm.output.slice(-15);
+    for (let i = recent.length - 1; i >= 0; i--) {
+      const line = recent[i];
+      if (/error TS\d+|SyntaxError|TypeError|ReferenceError|Cannot find module|failed to compile|build failed/i.test(line)) {
+        return line.trim();
+      }
+    }
+    return null;
+  }, [activeTerm?.output]);
+
+  const handleAutoFix = () => {
+    if (!detectedError) return;
+    useUIStore.getState().setRightTab('chat');
+    useAIStore.getState().sendMessage('Diagnose and provide a complete fix for this terminal error:', detectedError, 'fix');
+  };
 
   useEffect(() => {
     const cleanup = initTerminalListener();
@@ -269,6 +289,25 @@ export const BottomPanel: React.FC = () => {
             ))}
             <div ref={terminalEndRef} />
           </div>
+
+          {/* Auto-Healer Error Diagnostic Banner */}
+          {detectedError && (
+            <div className="px-3 py-1.5 bg-rose-950/80 border-t border-rose-500/40 flex items-center justify-between text-xs animate-in fade-in">
+              <div className="flex items-center space-x-2 text-rose-300 truncate">
+                <AlertTriangle className="w-3.5 h-3.5 text-rose-400 flex-shrink-0" />
+                <span className="font-semibold text-rose-200">Terminal Issue:</span>
+                <span className="truncate font-mono text-[11px] text-slate-300">{detectedError}</span>
+              </div>
+              <button
+                type="button"
+                onClick={handleAutoFix}
+                className="px-2.5 py-1 rounded bg-indigo-600 hover:bg-indigo-500 text-white font-medium flex items-center space-x-1.5 text-xs flex-shrink-0 ml-3 transition-colors shadow-xs"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+                <span>Fix with AI</span>
+              </button>
+            </div>
+          )}
 
           {/* Terminal Command Input Form */}
           <form

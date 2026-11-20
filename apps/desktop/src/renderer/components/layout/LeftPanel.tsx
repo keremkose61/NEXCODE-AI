@@ -19,7 +19,8 @@ import {
   Minus,
   Check,
   ShieldAlert,
-  ChevronDown
+  ChevronDown,
+  GitPullRequest
 } from 'lucide-react';
 import { useUIStore } from '../../stores/useUIStore';
 import { useProjectStore } from '../../stores/useProjectStore';
@@ -29,7 +30,7 @@ import { useNotificationStore } from '../../stores/useNotificationStore';
 import { FileTreeItem } from '../explorer/FileTreeItem';
 
 export const LeftPanel: React.FC = () => {
-  const { leftSidebarOpen, activeLeftTab, leftPanelWidth } = useUIStore();
+  const { leftSidebarOpen, activeLeftTab, leftPanelWidth, openPRReview } = useUIStore();
   const { projectName, rootPath, files, openFolderDialog, refreshFiles, isLoading } =
     useProjectStore();
   const { openFile, openTabs } = useEditorStore();
@@ -319,6 +320,14 @@ export const LeftPanel: React.FC = () => {
             </div>
 
             <div className="flex items-center space-x-1">
+              <button
+                onClick={openPRReview}
+                title="Generate AI Pull Request & Code Review"
+                className="px-1.5 py-0.5 rounded bg-indigo-600/30 text-indigo-300 hover:bg-indigo-600/50 text-[10px] flex items-center space-x-1 font-medium transition-colors"
+              >
+                <GitPullRequest className="w-3 h-3" />
+                <span>PR Review</span>
+              </button>
               <button
                 onClick={handlePull}
                 title="Pull from Remote"

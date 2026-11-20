@@ -36,6 +36,15 @@ export const IPC_CHANNELS = {
   AI_STREAM_CHUNK: 'ai:stream-chunk',
   AI_PULL_MODEL: 'ai:pull-model',
   AI_PULL_PROGRESS: 'ai:pull-progress',
+  AI_DELETE_MODEL: 'ai:delete-model',
+
+  // RAG & Codebase Knowledge
+  RAG_INDEX_PROJECT: 'rag:index-project',
+  RAG_QUERY_PROJECT: 'rag:query-project',
+  RAG_GET_STATS: 'rag:get-stats',
+
+  // Terminal Auto-Healer
+  TERMINAL_DIAGNOSE_ERROR: 'terminal:diagnose-error',
 
   // Autonomous Agent
   AGENT_PLAN_TASK: 'agent:plan-task',

@@ -96,3 +96,49 @@ export interface AgentAuditLog {
   reverted?: boolean;
   timestamp: number;
 }
+
+export interface ModelPullProgress {
+  model: string;
+  status: string;
+  completed?: number;
+  total?: number;
+  percentage?: number;
+}
+
+export interface TerminalDiagnostic {
+  tabId: string;
+  command?: string;
+  errorOutput: string;
+  diagnosis?: string;
+  suggestedPatch?: string;
+  timestamp: number;
+}
+
+export interface RAGSearchResult {
+  filePath: string;
+  lineStart: number;
+  lineEnd: number;
+  content: string;
+  score: number;
+}
+
+export interface MultimodalAttachment {
+  id: string;
+  name: string;
+  dataUrl: string;
+  type: string;
+}
+
+export interface PRReviewSummary {
+  title: string;
+  description: string;
+  branch: string;
+  baseBranch: string;
+  summary: string;
+  riskLevel: 'low' | 'medium' | 'high';
+  fileReviews: {
+    filePath: string;
+    suggestions: string[];
+    status: 'clean' | 'has_notes';
+  }[];
+}
