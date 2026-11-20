@@ -35,3 +35,20 @@
 .no-drag-region {
   -webkit-app-region: no-drag;
 }
+
+/* Monaco Breakpoint & Debugger Highlights */
+.myBreakpointGlyph {
+  background-color: #f43f5e;
+  border-radius: 50%;
+  width: 10px !important;
+  height: 10px !important;
+  margin-left: 5px;
+  margin-top: 4px;
+  cursor: pointer;
+  box-shadow: 0 0 6px rgba(244, 63, 94, 0.6);
+}
+
+.debugCurrentLineHighlight {
+  background-color: rgba(245, 158, 11, 0.2) !important;
+  border-left: 2px solid #f59e0b;
+}

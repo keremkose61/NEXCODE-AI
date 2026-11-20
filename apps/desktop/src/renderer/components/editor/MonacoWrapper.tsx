@@ -5,6 +5,7 @@ import { useSettingsStore } from '../../stores/useSettingsStore';
 import { useNotificationStore } from '../../stores/useNotificationStore';
 import { useUIStore } from '../../stores/useUIStore';
 import { useAIStore } from '../../stores/useAIStore';
+import { useDebuggerStore } from '../../stores/useDebuggerStore';
 import {
   NEXCODE_DARK_THEME,
   NEXCODE_BLACK_THEME,
@@ -17,10 +18,22 @@ export const MonacoWrapper: React.FC = () => {
     useEditorStore();
   const { settings } = useSettingsStore();
   const { addNotification } = useNotificationStore();
-  const { openInlineAI, setRightTab } = useUIStore();
+  const { openInlineAI, setRightTab, setBottomTab } = useUIStore();
   const { sendMessage } = useAIStore();
+  const {
+    breakpoints,
+    toggleBreakpoint,
+    currentLine,
+    currentFile,
+    isDebugging,
+    isPaused,
+    startDebugging,
+    resumeDebugging
+  } = useDebuggerStore();
+
   const editorRef = useRef<any>(null);
   const monacoRef = useRef<any>(null);
+  const decorationsRef = useRef<string[]>([]);
 
   const activeTab = openTabs.find((t) => t.id === activeTabId);
 
@@ -30,6 +43,41 @@ export const MonacoWrapper: React.FC = () => {
       monacoRef.current.editor.setTheme(settings.theme || 'nexcode-dark');
     }
   }, [settings.theme]);
+
+  // Sync Breakpoint & Debugger Line Highlights
+  useEffect(() => {
+    if (!editorRef.current || !monacoRef.current || !activeTab) return;
+    const monaco = monacoRef.current;
+    const editor = editorRef.current;
+
+    const fileBreakpoints = breakpoints.filter((b) => b.file === activeTab.fileName);
+    const newDecorations: any[] = [];
+
+    // Red breakpoint circle in glyph margin
+    fileBreakpoints.forEach((b) => {
+      newDecorations.push({
+        range: new monaco.Range(b.line, 1, b.line, 1),
+        options: {
+          isWholeLine: false,
+          glyphMarginClassName: 'myBreakpointGlyph',
+          glyphMarginHoverMessage: { value: `Breakpoint at line ${b.line}` }
+        }
+      });
+    });
+
+    // Amber highlight on active debug paused line
+    if (isDebugging && currentLine && currentFile === activeTab.fileName) {
+      newDecorations.push({
+        range: new monaco.Range(currentLine, 1, currentLine, 1),
+        options: {
+          isWholeLine: true,
+          className: 'debugCurrentLineHighlight'
+        }
+      });
+    }
+
+    decorationsRef.current = editor.deltaDecorations(decorationsRef.current, newDecorations);
+  }, [breakpoints, currentLine, currentFile, isDebugging, activeTab]);
 
   const handleEditorDidMount: OnMount = (editor, monaco) => {
     editorRef.current = editor;
@@ -71,6 +119,19 @@ export const MonacoWrapper: React.FC = () => {
     // Track cursor movements for the status bar
     editor.onDidChangeCursorPosition((e) => {
       setCursorPosition(e.position.lineNumber, e.position.column);
+    });
+
+    // Toggle Breakpoint on Gutter / Margin Click
+    editor.onMouseDown((e) => {
+      if (
+        e.target.type === monaco.editor.MouseTargetType.GUTTER_GLYPH_MARGIN ||
+        e.target.type === monaco.editor.MouseTargetType.GUTTER_LINE_NUMBERS
+      ) {
+        const line = e.target.position?.lineNumber;
+        if (line && activeTab) {
+          toggleBreakpoint(activeTab.fileName, line);
+        }
+      }
     });
 
     // Keyboard shortcut for saving (Ctrl+S)
@@ -125,6 +186,17 @@ export const MonacoWrapper: React.FC = () => {
     // Keyboard shortcut: Ctrl+K for Inline AI Edit
     editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyK, () => {
       triggerInlineAI();
+    });
+
+    // F5: Start / Continue Debugger
+    editor.addCommand(monaco.KeyCode.F5, () => {
+      const debugState = useDebuggerStore.getState();
+      if (!debugState.isDebugging) {
+        setBottomTab('debug');
+        startDebugging(activeTab?.fileName || 'index.ts');
+      } else if (debugState.isPaused) {
+        resumeDebugging();
+      }
     });
 
     // Context Menu AI Actions
@@ -200,6 +272,19 @@ export const MonacoWrapper: React.FC = () => {
         sendMessage('Generate comprehensive documentation/docstrings for this code:', text, 'docgen');
       }
     });
+
+    editor.addAction({
+      id: 'nexcode.debug.toggle-bp',
+      label: 'Toggle Breakpoint (F9)',
+      contextMenuGroupId: '9_debug',
+      contextMenuOrder: 1,
+      run: () => {
+        const pos = editor.getPosition();
+        if (pos && activeTab) {
+          toggleBreakpoint(activeTab.fileName, pos.lineNumber);
+        }
+      }
+    });
   };
 
   if (!activeTab) {
@@ -226,6 +311,7 @@ export const MonacoWrapper: React.FC = () => {
           fontSize: settings.fontSize,
           fontFamily: settings.fontFamily,
           fontLigatures: true,
+          glyphMargin: true,
           minimap: { enabled: settings.minimap, side: 'right' },
           automaticLayout: true,
           smoothScrolling: true,

@@ -44,6 +44,19 @@ const nexcodeAPI = {
       return () => ipcRenderer.removeListener(IPC_CHANNELS.FS_FILE_CHANGED, subscription);
     }
   },
+  terminal: {
+    spawn: (tabId: string, shell?: 'powershell' | 'cmd', cwd?: string) =>
+      ipcRenderer.invoke(IPC_CHANNELS.TERMINAL_SPAWN, tabId, shell, cwd),
+    writeInput: (tabId: string, data: string) =>
+      ipcRenderer.invoke(IPC_CHANNELS.TERMINAL_INPUT, tabId, data),
+    close: (tabId: string) =>
+      ipcRenderer.invoke(IPC_CHANNELS.TERMINAL_CLOSE, tabId),
+    onOutput: (callback: (payload: { tabId: string; data: string }) => void) => {
+      const sub = (_: any, data: any) => callback(data);
+      ipcRenderer.on(IPC_CHANNELS.TERMINAL_OUTPUT, sub);
+      return () => ipcRenderer.removeListener(IPC_CHANNELS.TERMINAL_OUTPUT, sub);
+    }
+  },
   ai: {
     checkStatus: () => ipcRenderer.invoke(IPC_CHANNELS.AI_CHECK_STATUS),
     listModels: () => ipcRenderer.invoke(IPC_CHANNELS.AI_LIST_MODELS),

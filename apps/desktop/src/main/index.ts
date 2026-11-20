@@ -9,6 +9,7 @@ import { fileWatcher } from './watcher';
 import { aiServiceManager } from './ai-service';
 import { makeHttpRequest } from './ai-client';
 import { agentManager } from './agent-manager';
+import { terminalManager } from './terminal-manager';
 
 let mainWindow: BrowserWindow | null = null;
 let currentProjectPath: string | null = null;
@@ -371,6 +372,20 @@ ipcMain.handle(IPC_CHANNELS.AGENT_GET_AUDIT_LOGS, () => {
   return agentManager.getAuditLogs();
 });
 
+// Terminal IPC
+ipcMain.handle(IPC_CHANNELS.TERMINAL_SPAWN, (_, tabId: string, shell?: 'powershell' | 'cmd', cwd?: string) => {
+  const ws = cwd || currentProjectPath || process.cwd();
+  return terminalManager.spawn(tabId, shell || 'powershell', ws, mainWindow);
+});
+
+ipcMain.handle(IPC_CHANNELS.TERMINAL_INPUT, (_, tabId: string, data: string) => {
+  return terminalManager.writeInput(tabId, data);
+});
+
+ipcMain.handle(IPC_CHANNELS.TERMINAL_CLOSE, (_, tabId: string) => {
+  return terminalManager.close(tabId);
+});
+
 // Database & Persistent Storage IPC
 ipcMain.handle(IPC_CHANNELS.DB_GET_RECENT_PROJECTS, () => {
   return dbManager.getRecentProjects();
@@ -428,6 +443,7 @@ app.whenReady().then(async () => {
 app.on('will-quit', () => {
   aiServiceManager.stopService();
   fileWatcher.stopWatching();
+  terminalManager.closeAll();
 });
 
 app.on('window-all-closed', () => {
