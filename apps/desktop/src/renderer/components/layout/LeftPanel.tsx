@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   FolderPlus,
   FilePlus,
@@ -8,21 +8,75 @@ import {
   GitCommit,
   Sparkles,
   Layers,
-  Database
+  Database,
+  FileCode,
+  FileText
 } from 'lucide-react';
 import { useUIStore } from '../../stores/useUIStore';
 import { useProjectStore } from '../../stores/useProjectStore';
+import { useEditorStore } from '../../stores/useEditorStore';
 import { FileTreeItem } from '../explorer/FileTreeItem';
 
 export const LeftPanel: React.FC = () => {
-  const { leftSidebarOpen, activeLeftTab } = useUIStore();
+  const { leftSidebarOpen, activeLeftTab, leftPanelWidth } = useUIStore();
   const { projectName, rootPath, files, openFolderDialog, refreshFiles, isLoading } =
     useProjectStore();
+  const { openFile, openTabs } = useEditorStore();
+
+  const [searchQuery, setSearchQuery] = useState('');
+  const [newFileInputOpen, setNewFileInputOpen] = useState(false);
+  const [newFileName, setNewFileName] = useState('');
 
   if (!leftSidebarOpen) return null;
 
+  // Real-time search across open project files / tabs
+  const searchResults = React.useMemo(() => {
+    if (!searchQuery.trim()) return [];
+    const q = searchQuery.toLowerCase();
+    const results: { fileName: string; filePath: string; line: number; preview: string }[] = [];
+
+    for (const tab of openTabs) {
+      const lines = tab.content.split('\n');
+      lines.forEach((lineText, idx) => {
+        if (lineText.toLowerCase().includes(q)) {
+          results.push({
+            fileName: tab.fileName,
+            filePath: tab.filePath,
+            line: idx + 1,
+            preview: lineText.trim()
+          });
+        }
+      });
+    }
+    return results;
+  }, [searchQuery, openTabs]);
+
+  const handleCreateNewFile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newFileName.trim()) return;
+
+    const fullPath = rootPath ? `${rootPath}\\${newFileName.trim()}` : newFileName.trim();
+
+    if (window.nexcode && rootPath) {
+      await window.nexcode.fs.createFile(fullPath);
+      await refreshFiles();
+    }
+
+    openFile({
+      path: fullPath,
+      name: newFileName.trim(),
+      content: '// New file\n'
+    });
+
+    setNewFileName('');
+    setNewFileInputOpen(false);
+  };
+
   return (
-    <div className="w-64 bg-nexcode-900 border-r border-nexcode-800 flex flex-col select-none text-xs h-full overflow-hidden">
+    <div
+      style={{ width: `${leftPanelWidth}px` }}
+      className="bg-nexcode-900 border-r border-nexcode-800 flex flex-col select-none text-xs h-full overflow-hidden flex-shrink-0"
+    >
       {/* Tab: Explorer */}
       {activeLeftTab === 'explorer' && (
         <div className="flex flex-col h-full">
@@ -38,19 +92,35 @@ export const LeftPanel: React.FC = () => {
                 <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
               </button>
               <button
+                onClick={() => setNewFileInputOpen(!newFileInputOpen)}
                 title="New File"
                 className="p-1 hover:text-white hover:bg-nexcode-800 rounded"
               >
                 <FilePlus className="w-3.5 h-3.5" />
               </button>
               <button
-                title="New Folder"
+                title="Open Folder"
+                onClick={openFolderDialog}
                 className="p-1 hover:text-white hover:bg-nexcode-800 rounded"
               >
-                <FolderPlus className="w-3.5 h-3.5" />
+                <FolderOpen className="w-3.5 h-3.5" />
               </button>
             </div>
           </div>
+
+          {/* New file input form */}
+          {newFileInputOpen && (
+            <form onSubmit={handleCreateNewFile} className="p-2 border-b border-nexcode-800 bg-nexcode-950">
+              <input
+                autoFocus
+                type="text"
+                value={newFileName}
+                onChange={(e) => setNewFileName(e.target.value)}
+                placeholder="filename.ts (Press Enter)"
+                className="w-full bg-nexcode-900 border border-indigo-500 rounded px-2 py-1 text-slate-100 text-xs focus:outline-none"
+              />
+            </form>
+          )}
 
           {/* Project Directory Section */}
           <div className="p-2 border-b border-nexcode-800/60 bg-nexcode-950/40 flex items-center justify-between text-[11px] font-semibold text-slate-300">
@@ -77,7 +147,7 @@ export const LeftPanel: React.FC = () => {
                 </div>
                 <button
                   onClick={openFolderDialog}
-                  className="px-3 py-1.5 rounded-md bg-indigo-600 hover:bg-indigo-500 text-white font-medium transition-colors shadow-sm text-xs"
+                  className="px-3 py-1.5 rounded-md bg-indigo-600 hover:bg-indigo-500 text-white font-medium transition-colors shadow-sm text-xs cursor-pointer"
                 >
                   Open Project Folder
                 </button>
@@ -91,18 +161,50 @@ export const LeftPanel: React.FC = () => {
       {activeLeftTab === 'search' && (
         <div className="flex flex-col h-full p-3 space-y-3">
           <span className="font-bold uppercase tracking-wider text-[10px] text-slate-400">
-            Search Files
+            Search Workspace
           </span>
           <div className="relative">
             <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5" />
             <input
               type="text"
-              placeholder="Search in project..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search in open files..."
               className="w-full bg-nexcode-950 border border-nexcode-750 rounded-md pl-8 pr-2 py-1.5 text-slate-200 placeholder-slate-500 focus:outline-none focus:border-indigo-500 text-xs"
             />
           </div>
-          <div className="text-[11px] text-slate-500 italic text-center py-4">
-            Type a query to search across all open project files.
+
+          <div className="flex-1 overflow-y-auto space-y-1.5">
+            {searchResults.length > 0 ? (
+              searchResults.map((res, i) => (
+                <div
+                  key={i}
+                  onClick={() => {
+                    const existing = openTabs.find((t) => t.filePath === res.filePath);
+                    if (existing) {
+                      openFile({ path: res.filePath, name: res.fileName, content: existing.content });
+                    }
+                  }}
+                  className="p-2 rounded bg-nexcode-950 border border-nexcode-800 hover:border-indigo-500/40 cursor-pointer space-y-1 transition-colors"
+                >
+                  <div className="flex items-center justify-between text-indigo-300 font-medium">
+                    <span className="truncate">{res.fileName}</span>
+                    <span className="text-[10px] text-slate-500 font-mono">Ln {res.line}</span>
+                  </div>
+                  <div className="text-[10px] text-slate-400 truncate font-mono bg-nexcode-900/60 p-1 rounded">
+                    {res.preview}
+                  </div>
+                </div>
+              ))
+            ) : searchQuery ? (
+              <div className="text-[11px] text-slate-500 italic text-center py-4">
+                No matching text found.
+              </div>
+            ) : (
+              <div className="text-[11px] text-slate-500 italic text-center py-4">
+                Type a query to search across all open project files.
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -118,7 +220,7 @@ export const LeftPanel: React.FC = () => {
             placeholder="Commit message (Enter to commit, Shift+Enter for newline)"
             className="w-full bg-nexcode-950 border border-nexcode-750 rounded-md p-2 text-slate-200 placeholder-slate-500 focus:outline-none focus:border-indigo-500 text-xs resize-none"
           />
-          <button className="w-full py-1.5 rounded bg-indigo-600 hover:bg-indigo-500 text-white font-medium flex items-center justify-center space-x-1.5 transition-colors">
+          <button className="w-full py-1.5 rounded bg-indigo-600 hover:bg-indigo-500 text-white font-medium flex items-center justify-center space-x-1.5 transition-colors cursor-pointer">
             <GitCommit className="w-3.5 h-3.5" />
             <span>Commit to Branch</span>
           </button>

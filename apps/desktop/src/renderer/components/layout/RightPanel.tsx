@@ -19,7 +19,8 @@ import { useAIStore } from '../../stores/useAIStore';
 import { useEditorStore } from '../../stores/useEditorStore';
 
 export const RightPanel: React.FC = () => {
-  const { rightSidebarOpen, activeRightTab, setRightTab, toggleRightSidebar } = useUIStore();
+  const { rightSidebarOpen, activeRightTab, setRightTab, toggleRightSidebar, rightPanelWidth } =
+    useUIStore();
   const {
     messages,
     sendMessage,
@@ -64,7 +65,10 @@ export const RightPanel: React.FC = () => {
   ];
 
   return (
-    <aside className="w-80 bg-nexcode-900 border-l border-nexcode-800 flex flex-col select-none text-xs h-full overflow-hidden z-30">
+    <aside
+      style={{ width: `${rightPanelWidth}px` }}
+      className="bg-nexcode-900 border-l border-nexcode-800 flex flex-col select-none text-xs h-full overflow-hidden z-30 flex-shrink-0"
+    >
       {/* Top Header & Tabs */}
       <div className="h-9 px-3 border-b border-nexcode-800 flex items-center justify-between bg-nexcode-950">
         <div className="flex items-center space-x-1">

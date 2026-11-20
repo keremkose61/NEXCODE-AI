@@ -1,11 +1,15 @@
 import React, { useRef } from 'react';
 import Editor, { OnMount } from '@monaco-editor/react';
 import { useEditorStore } from '../../stores/useEditorStore';
+import { useSettingsStore } from '../../stores/useSettingsStore';
+import { useNotificationStore } from '../../stores/useNotificationStore';
 import { NEXCODE_DARK_THEME } from '@nexcode/editor';
 
 export const MonacoWrapper: React.FC = () => {
   const { openTabs, activeTabId, updateContent, setCursorPosition, saveCurrentFile } =
     useEditorStore();
+  const { settings } = useSettingsStore();
+  const { addNotification } = useNotificationStore();
   const editorRef = useRef<any>(null);
 
   const activeTab = openTabs.find((t) => t.id === activeTabId);
@@ -23,8 +27,9 @@ export const MonacoWrapper: React.FC = () => {
     });
 
     // Keyboard shortcut for saving (Ctrl+S)
-    editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
-      saveCurrentFile();
+    editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, async () => {
+      await saveCurrentFile();
+      addNotification({ type: 'success', message: 'File saved successfully.' });
     });
   };
 
@@ -49,10 +54,10 @@ export const MonacoWrapper: React.FC = () => {
         onChange={(val) => updateContent(activeTab.id, val || '')}
         onMount={handleEditorDidMount}
         options={{
-          fontSize: 14,
-          fontFamily: "'Fira Code', 'JetBrains Mono', Consolas, 'Courier New', monospace",
+          fontSize: settings.fontSize,
+          fontFamily: settings.fontFamily,
           fontLigatures: true,
-          minimap: { enabled: true, side: 'right' },
+          minimap: { enabled: settings.minimap, side: 'right' },
           automaticLayout: true,
           smoothScrolling: true,
           cursorBlinking: 'smooth',
@@ -60,12 +65,12 @@ export const MonacoWrapper: React.FC = () => {
           renderLineHighlight: 'all',
           padding: { top: 12, bottom: 12 },
           scrollBeyondLastLine: false,
-          tabSize: 2,
+          tabSize: settings.tabSize,
           lineNumbers: 'on',
           renderWhitespace: 'selection',
           bracketPairColorization: { enabled: true },
           guides: { bracketPairs: true, indentation: true },
-          wordWrap: 'on'
+          wordWrap: settings.wordWrap
         }}
       />
     </div>

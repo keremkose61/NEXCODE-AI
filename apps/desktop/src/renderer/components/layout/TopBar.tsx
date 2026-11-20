@@ -8,15 +8,24 @@ import {
   X,
   ChevronDown,
   Cpu,
-  FolderOpen
+  FolderOpen,
+  Search,
+  Command
 } from 'lucide-react';
 import { useAIStore } from '../../stores/useAIStore';
 import { useProjectStore } from '../../stores/useProjectStore';
+import { useUIStore } from '../../stores/useUIStore';
+import { useSettingsStore } from '../../stores/useSettingsStore';
 
 export const TopBar: React.FC = () => {
   const { selectedModel, availableModels, setSelectedModel, isOllamaRunning } = useAIStore();
   const { projectName, openFolderDialog } = useProjectStore();
+  const { openCommandPalette, openQuickOpen, toggleLeftSidebar, toggleBottomPanel, toggleRightSidebar } =
+    useUIStore();
+  const { openSettingsModal } = useSettingsStore();
+
   const [modelDropdownOpen, setModelDropdownOpen] = useState(false);
+  const [activeMenu, setActiveMenu] = useState<string | null>(null);
 
   const handleMinimize = () => window.nexcode?.window.minimize();
   const handleMaximize = () => window.nexcode?.window.maximize();
@@ -32,32 +41,134 @@ export const TopBar: React.FC = () => {
             <Sparkles className="w-3 h-3 text-white" />
           </div>
           <span className="font-bold tracking-wider text-slate-100 flex items-center gap-1.5">
-            NEXCODE <span className="text-indigo-400 font-extrabold text-[10px] px-1 py-0.5 rounded bg-indigo-500/10 border border-indigo-500/20">AI</span>
+            NEXCODE{' '}
+            <span className="text-indigo-400 font-extrabold text-[10px] px-1 py-0.5 rounded bg-indigo-500/10 border border-indigo-500/20">
+              AI
+            </span>
           </span>
         </div>
 
         {/* Application Menus */}
-        <div className="hidden md:flex items-center space-x-1 text-slate-400 font-medium ml-2">
-          {['File', 'Edit', 'Selection', 'View', 'Go', 'Run', 'Terminal', 'Help'].map((item) => (
-            <button
-              key={item}
-              className="px-2 py-0.5 rounded hover:bg-nexcode-850 hover:text-slate-200 transition-colors"
+        <div className="hidden md:flex items-center space-x-1 text-slate-400 font-medium ml-2 relative">
+          <button
+            onClick={() => setActiveMenu(activeMenu === 'file' ? null : 'file')}
+            className="px-2 py-0.5 rounded hover:bg-nexcode-850 hover:text-slate-200 transition-colors"
+          >
+            File
+          </button>
+          <button
+            onClick={() => setActiveMenu(activeMenu === 'view' ? null : 'view')}
+            className="px-2 py-0.5 rounded hover:bg-nexcode-850 hover:text-slate-200 transition-colors"
+          >
+            View
+          </button>
+          <button
+            onClick={() => openCommandPalette()}
+            className="px-2 py-0.5 rounded hover:bg-nexcode-850 hover:text-slate-200 transition-colors"
+          >
+            Commands
+          </button>
+          <button
+            onClick={() => openSettingsModal()}
+            className="px-2 py-0.5 rounded hover:bg-nexcode-850 hover:text-slate-200 transition-colors"
+          >
+            Settings
+          </button>
+
+          {/* File Menu Dropdown */}
+          {activeMenu === 'file' && (
+            <div
+              onMouseLeave={() => setActiveMenu(null)}
+              className="absolute left-0 top-7 w-48 bg-nexcode-900 border border-nexcode-750 rounded-lg shadow-2xl p-1 z-50 text-[11px]"
             >
-              {item}
-            </button>
-          ))}
+              <button
+                onClick={() => {
+                  openFolderDialog();
+                  setActiveMenu(null);
+                }}
+                className="w-full text-left px-2.5 py-1.5 rounded hover:bg-nexcode-800 text-slate-200 flex items-center justify-between"
+              >
+                <span>Open Folder...</span>
+                <span className="text-slate-500 font-mono">Ctrl+O</span>
+              </button>
+              <button
+                onClick={() => {
+                  openSettingsModal();
+                  setActiveMenu(null);
+                }}
+                className="w-full text-left px-2.5 py-1.5 rounded hover:bg-nexcode-800 text-slate-200 flex items-center justify-between"
+              >
+                <span>Preferences</span>
+                <span className="text-slate-500 font-mono">Ctrl+,</span>
+              </button>
+            </div>
+          )}
+
+          {/* View Menu Dropdown */}
+          {activeMenu === 'view' && (
+            <div
+              onMouseLeave={() => setActiveMenu(null)}
+              className="absolute left-10 top-7 w-52 bg-nexcode-900 border border-nexcode-750 rounded-lg shadow-2xl p-1 z-50 text-[11px]"
+            >
+              <button
+                onClick={() => {
+                  openCommandPalette();
+                  setActiveMenu(null);
+                }}
+                className="w-full text-left px-2.5 py-1.5 rounded hover:bg-nexcode-800 text-slate-200 flex items-center justify-between"
+              >
+                <span>Command Palette...</span>
+                <span className="text-slate-500 font-mono">Ctrl+Shift+P</span>
+              </button>
+              <button
+                onClick={() => {
+                  toggleLeftSidebar();
+                  setActiveMenu(null);
+                }}
+                className="w-full text-left px-2.5 py-1.5 rounded hover:bg-nexcode-800 text-slate-200 flex items-center justify-between"
+              >
+                <span>Toggle Explorer</span>
+                <span className="text-slate-500 font-mono">Ctrl+B</span>
+              </button>
+              <button
+                onClick={() => {
+                  toggleBottomPanel();
+                  setActiveMenu(null);
+                }}
+                className="w-full text-left px-2.5 py-1.5 rounded hover:bg-nexcode-800 text-slate-200 flex items-center justify-between"
+              >
+                <span>Toggle Terminal</span>
+                <span className="text-slate-500 font-mono">Ctrl+J</span>
+              </button>
+              <button
+                onClick={() => {
+                  toggleRightSidebar();
+                  setActiveMenu(null);
+                }}
+                className="w-full text-left px-2.5 py-1.5 rounded hover:bg-nexcode-800 text-slate-200 flex items-center justify-between"
+              >
+                <span>Toggle AI Assistant</span>
+                <span className="text-slate-500 font-mono">Ctrl+L</span>
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Middle: Active Project / Workspace Breadcrumb */}
+      {/* Middle: Quick Open & Command Center searchbar */}
       <div className="flex items-center space-x-2 text-slate-400 text-[11px] no-drag-region">
         <button
-          onClick={openFolderDialog}
-          className="flex items-center space-x-1 px-2.5 py-1 rounded bg-nexcode-900 border border-nexcode-800 hover:border-indigo-500/50 hover:text-slate-200 transition-all cursor-pointer"
-          title="Open Folder"
+          onClick={openQuickOpen}
+          className="flex items-center space-x-2 px-3 py-1 rounded-md bg-nexcode-900/90 border border-nexcode-800 hover:border-indigo-500/60 hover:text-slate-200 transition-all cursor-pointer shadow-xs min-w-[220px] justify-between"
+          title="Quick Open Files (Ctrl+P)"
         >
-          <FolderOpen className="w-3.5 h-3.5 text-indigo-400" />
-          <span className="font-medium text-slate-300">{projectName}</span>
+          <div className="flex items-center space-x-1.5">
+            <Search className="w-3.5 h-3.5 text-indigo-400" />
+            <span className="font-medium text-slate-300 truncate max-w-[140px]">{projectName}</span>
+          </div>
+          <kbd className="text-[10px] px-1 py-0.2 rounded bg-nexcode-950 text-slate-500 font-mono border border-nexcode-850">
+            Ctrl+P
+          </kbd>
         </button>
       </div>
 
@@ -118,7 +229,7 @@ export const TopBar: React.FC = () => {
 
         {/* Run Project Button */}
         <button
-          className="flex items-center space-x-1 px-2.5 py-1 rounded bg-indigo-600 hover:bg-indigo-500 text-white font-medium transition-colors"
+          className="flex items-center space-x-1 px-2.5 py-1 rounded bg-indigo-600 hover:bg-indigo-500 text-white font-medium transition-colors cursor-pointer"
           title="Run Active File (F5)"
         >
           <Play className="w-3 h-3 fill-current" />
@@ -127,7 +238,8 @@ export const TopBar: React.FC = () => {
 
         {/* Settings Button */}
         <button
-          className="p-1.5 rounded text-slate-400 hover:text-slate-200 hover:bg-nexcode-850 transition-colors"
+          onClick={openSettingsModal}
+          className="p-1.5 rounded text-slate-400 hover:text-slate-200 hover:bg-nexcode-850 transition-colors cursor-pointer"
           title="Settings (Ctrl+,)"
         >
           <Settings className="w-3.5 h-3.5" />

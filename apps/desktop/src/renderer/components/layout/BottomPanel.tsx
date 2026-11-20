@@ -15,7 +15,8 @@ import { useUIStore, BottomPanelTab } from '../../stores/useUIStore';
 import { useProjectStore } from '../../stores/useProjectStore';
 
 export const BottomPanel: React.FC = () => {
-  const { bottomPanelOpen, activeBottomTab, setBottomTab, toggleBottomPanel } = useUIStore();
+  const { bottomPanelOpen, activeBottomTab, setBottomTab, toggleBottomPanel, bottomPanelHeight } =
+    useUIStore();
   const { rootPath, projectName } = useProjectStore();
 
   const [terminals, setTerminals] = useState<
@@ -86,9 +87,8 @@ export const BottomPanel: React.FC = () => {
 
   return (
     <div
-      className={`bg-nexcode-950 border-t border-nexcode-800 flex flex-col select-none text-xs transition-all z-20 ${
-        isExpanded ? 'h-96' : 'h-52'
-      }`}
+      style={{ height: isExpanded ? '450px' : `${bottomPanelHeight}px` }}
+      className="bg-nexcode-950 border-t border-nexcode-800 flex flex-col select-none text-xs transition-all z-20 flex-shrink-0"
     >
       {/* Tab Bar Header */}
       <div className="h-8 px-3 border-b border-nexcode-800 flex items-center justify-between bg-nexcode-900/80">
