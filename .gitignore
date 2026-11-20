@@ -1,8 +1,10 @@
 # Node / Frontend
 node_modules/
 dist/
+dist-electron/
 out/
 build/
+*.blockmap
 .pnpm-store/
 *.log
 npm-debug.log*

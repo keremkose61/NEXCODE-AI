@@ -4,12 +4,15 @@
   "private": true,
   "main": "./out/main/index.js",
   "description": "NEXCODE AI – Professional Local Desktop IDE. Code Smarter. Build Beyond.",
+  "author": "NEXCODE AI Team",
   "scripts": {
     "dev": "node scripts/dev.mjs",
     "build:main": "node scripts/build-main.mjs",
     "build:renderer": "vite build",
     "build": "pnpm build:main && pnpm build:renderer",
     "start": "electron .",
+    "package:win": "electron-builder --win",
+    "package:dir": "electron-builder --dir",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
   },
@@ -26,11 +29,18 @@
     ],
     "win": {
       "target": [
-        "nsis",
-        "portable"
-      ],
-      "arch": [
-        "x64"
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
       ]
     },
     "nsis": {
@@ -62,6 +72,7 @@
     "@vitejs/plugin-react": "^4.3.4",
     "autoprefixer": "^10.4.20",
     "electron": "^33.2.0",
+    "electron-builder": "^26.18.0",
     "esbuild": "^0.24.0",
     "postcss": "^8.4.49",
     "tailwindcss": "^3.4.15",
